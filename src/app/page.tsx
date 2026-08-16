@@ -1,69 +1,146 @@
-import Image from "next/image";
+import Link from "next/link";
+import { connection } from "next/server";
+import { LeaderList } from "@/components/leader-list";
+import { LiveTape } from "@/components/live-tape";
+import { MarketTable } from "@/components/market-table";
+import { StatCard } from "@/components/stat-card";
+import { TokenIcon } from "@/components/token-icon";
+import { VolumeBars } from "@/components/volume-bars";
+import { compactUsd, formatPct, pnlClass } from "@/lib/format";
+import { t } from "@/lib/i18n";
+import { getRequestLang } from "@/lib/lang-server";
+import { getOverview } from "@/lib/rh";
+import { publicRealtimeTransport } from "@/lib/shared-cache";
 
-export default function Home() {
+export const revalidate = 15;
+
+export default async function HomePage() {
+  await connection();
+  const [data, lang] = await Promise.all([getOverview(), getRequestLang()]);
+  const perps = data.markets.filter((m) => m.marketType === "perp");
+  const movers = [...perps]
+    .filter((m) => m.volume24h > 10_000)
+    .sort((a, b) => b.change24h - a.change24h)
+    .slice(0, 8);
+  const volumeLeaders = perps.slice(0, 5);
+  const tradeLeaders = [...perps]
+    .sort((a, b) => b.trades24h - a.trades24h)
+    .slice(0, 5);
+  const breakdown = perps.slice(0, 10).map((m) => ({
+    label: m.symbol,
+    value: m.volume24h,
+    href: `/markets/${encodeURIComponent(m.symbol)}`,
+  }));
+  const tapeMarkets = perps.slice(0, 16).map((m) => ({
+    marketId: m.marketId,
+    symbol: m.symbol,
+  }));
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert h-5 w-[100px]"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
+    <div className="space-y-8">
+      <section className="fade-up">
+        <p className="text-xs font-medium uppercase tracking-[0.16em] text-accent">
+          {t(lang, "home.kicker")}
+        </p>
+        <h1 className="mt-1 text-3xl font-semibold tracking-tight">
+          {t(lang, "home.title")}
+        </h1>
+      </section>
+
+      <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <StatCard
+          label={t(lang, "home.perpVolume")}
+          value={compactUsd(data.totals.dailyVolume)}
+          hint={t(lang, "home.perpVolumeHint")}
         />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the{" "}
-            <code className="rounded bg-black/[.06] px-1.5 py-0.5 font-mono text-[0.9em] dark:bg-white/[.08]">
-              page.tsx
-            </code>{" "}
-            file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
+        <StatCard
+          label={t(lang, "home.trades")}
+          value={data.totals.dailyTrades.toLocaleString()}
+          hint={t(lang, "home.tradesHint")}
+        />
+        <StatCard
+          label={t(lang, "home.markets")}
+          value={String(data.totals.markets)}
+          hint={t(lang, "home.marketsHint", {
+            perp: data.totals.perpMarkets,
+            spot: data.totals.spotMarkets,
+          })}
+        />
+        <StatCard
+          label={t(lang, "home.openInterest")}
+          value={compactUsd(data.totals.openInterest)}
+          hint={t(lang, "home.openInterestHint")}
+        />
+      </section>
+
+      {data.announcements[0] ? (
+        <div className="panel px-4 py-3 text-sm">
+          <span className="mr-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-accent">
+            {t(lang, "home.notice")}
+          </span>
+          <span className="font-medium">{data.announcements[0].title}</span>
+          <span className="text-muted"> — {data.announcements[0].content}</span>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert h-[14px] w-4"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={14}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+      ) : null}
+
+      <section>
+        <div className="mb-3">
+          <h2 className="text-sm font-semibold">{t(lang, "home.discovery")}</h2>
+          <p className="text-xs text-muted">{t(lang, "home.discoveryHint")}</p>
         </div>
-      </main>
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          {movers.map((m) => (
+            <Link
+              key={m.symbol}
+              href={`/markets/${encodeURIComponent(m.symbol)}`}
+              className="panel flex items-center gap-3 px-3 py-3 hover:bg-hover"
+            >
+              <TokenIcon symbol={m.symbol} />
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="font-semibold">{m.symbol}</span>
+                  <span className={`text-sm tabular ${pnlClass(m.change24h)}`}>
+                    {formatPct(m.change24h)}
+                  </span>
+                </div>
+                <div className="text-xs text-muted">
+                  {t(lang, "home.dailyVolume", { value: compactUsd(m.volume24h) })}
+                </div>
+              </div>
+            </Link>
+          ))}
+        </div>
+      </section>
+
+      <div className="grid gap-4 lg:grid-cols-3">
+        <LeaderList
+          title={t(lang, "home.volumeLeaders")}
+          hint={t(lang, "home.volumeLeadersHint")}
+          markets={volumeLeaders}
+          metric="volume"
+        />
+        <LeaderList
+          title={t(lang, "home.mostTraded")}
+          hint={t(lang, "home.mostTradedHint")}
+          markets={tradeLeaders}
+          metric="trades"
+        />
+        <VolumeBars
+          title={t(lang, "home.volumeMix")}
+          hint={t(lang, "home.volumeMixHint")}
+          rows={breakdown}
+          totalLabel={t(lang, "home.volumeMixTotal")}
+        />
+      </div>
+
+      <div className="grid items-start gap-4 lg:grid-cols-[1.4fr_0.8fr]">
+        <MarketTable markets={data.markets} />
+        <LiveTape
+          markets={tapeMarkets}
+          title={t(lang, "tape.title")}
+          transport={publicRealtimeTransport()}
+        />
+      </div>
     </div>
   );
 }

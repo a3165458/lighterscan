@@ -1,36 +1,35 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# LighterScan
 
-## Getting Started
+Unofficial explorer for **Lighter on Robinhood Chain**. Same job as [litscan.io](https://litscan.io/), pointed at the Robinhood Lighter Domain instead of Lighter Core.
 
-First, run the development server:
+- REST: `https://api.rh.lighter.xyz`
+- WebSocket: `wss://api.rh.lighter.xyz/stream`
+- Quote: USDG
+
+## Pages
+
+| Route | What it shows |
+| --- | --- |
+| `/` | 24h volume, trades, OI, hot markets, market table, live tape |
+| `/markets/[symbol]` | Price, OI, hourly chart, book, prints |
+| `/account/[id]` | Collateral, positions, assets, live volume + fills |
+| `/address/[0x…]` | Every RH Lighter account on an L1 wallet |
+| `/leaderboard` | Official points ranking (addresses are often redacted by RH) |
+| `/tape` | Multi-market public trade stream |
+
+Search from the header (`⌘K`) by market symbol, account index, or `0x` address.
+
+## Run
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+RH rate-limits hard. Responses are cached in memory; live tape and account fills come from the public WebSocket.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Honest gaps vs litscan.io
 
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Litscan on Lighter Core runs a private indexer (hourly volume reconstruction, PnL ranks, integrator flow). This build uses only public RH endpoints, so it does not invent 7-day trader leaderboards. Account volume/fills appear once the public `account_all` socket connects.
