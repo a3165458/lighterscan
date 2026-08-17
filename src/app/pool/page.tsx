@@ -9,7 +9,7 @@ import { getAccountByIndex, RhError } from "@/lib/rh";
 import { readPublicRealtimeSnapshot } from "@/lib/shared-cache";
 import { PUBLIC_POOL_ACCOUNT_INDEX } from "@/lib/tracker-metrics";
 
-export const revalidate = 20;
+export const revalidate = 60;
 
 export const metadata = { title: "Public Pool" };
 

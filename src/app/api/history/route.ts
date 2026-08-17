@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getAccountTradeHistory } from "@/lib/history";
+import { HISTORY_CACHE_CONTROL } from "@/lib/poll";
 import { getMarkets } from "@/lib/rh";
 import {
   checkPublicRateLimit,
@@ -20,7 +21,10 @@ export async function GET(req: Request) {
         fills: [],
         hasMore: false,
       },
-      { status: rate.unavailable ? 503 : 429, headers },
+      {
+        status: rate.unavailable ? 503 : 429,
+        headers: { ...headers, "Cache-Control": "no-store" },
+      },
     );
   }
 
@@ -42,7 +46,7 @@ export async function GET(req: Request) {
   if (!ACCOUNT_PATTERN.test(account)) {
     return NextResponse.json(
       { error: "Valid account index or address required" },
-      { status: 400, headers },
+      { status: 400, headers: { ...headers, "Cache-Control": "no-store" } },
     );
   }
   try {
@@ -55,7 +59,9 @@ export async function GET(req: Request) {
       selves.length ? selves : [account],
       names,
     );
-    return NextResponse.json(page, { headers });
+    return NextResponse.json(page, {
+      headers: { ...headers, "Cache-Control": HISTORY_CACHE_CONTROL },
+    });
   } catch {
     return NextResponse.json(
       {
@@ -64,7 +70,7 @@ export async function GET(req: Request) {
         hasMore: false,
         nextOffset: offset,
       },
-      { status: 503, headers },
+      { status: 503, headers: { ...headers, "Cache-Control": "no-store" } },
     );
   }
 }

@@ -10,7 +10,7 @@ import { getCandles, getOverview } from "@/lib/rh";
 import { hourlyQuoteVolume } from "@/lib/series";
 import { readHourlyStats, readPublicRealtimeSnapshot } from "@/lib/shared-cache";
 
-export const revalidate = 30;
+export const revalidate = 60;
 
 export const metadata = { title: "Stats" };
 
