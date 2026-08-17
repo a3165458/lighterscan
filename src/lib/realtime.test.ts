@@ -59,7 +59,8 @@ test("isRealtimeSnapshotFresh enforces the public stale window", () => {
   );
 
   assert.equal(isRealtimeSnapshotFresh(snapshot, 12_000), true);
-  assert.equal(isRealtimeSnapshotFresh(snapshot, 20_000), false);
+  assert.equal(isRealtimeSnapshotFresh(snapshot, 20_000), true);
+  assert.equal(isRealtimeSnapshotFresh(snapshot, 50_000), false);
 });
 
 test("parseLighterTradeMessage normalizes public WebSocket frames", () => {
