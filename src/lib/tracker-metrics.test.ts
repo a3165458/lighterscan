@@ -4,6 +4,9 @@ import type { HistoryFill } from "./history-map.ts";
 import {
   accountEquity,
   applyAccountEquities,
+  collectActiveAccountIds,
+  freezeTrackedSample,
+  mergeKnownAccountValues,
   rankTrackedAccounts,
   summarizeTrackedHistory,
 } from "./tracker-metrics.ts";
@@ -67,6 +70,17 @@ test("applyAccountEquities ranks whales by official account value", () => {
   assert.equal(ranked.whales[1].accountId, 1);
   assert.equal(ranked.whales[1].accountValue, 80);
   assert.equal(ranked.highFrequency.length, 0);
+});
+
+test("mergeKnownAccountValues keeps richer looked-up accounts even with no fills", () => {
+  const ranked = rankTrackedAccounts(trades, 3);
+  const merged = mergeKnownAccountValues(ranked.whales, {
+    1: { collateral: 80, totalAssetValue: 20 },
+    99: { collateral: 5_000, totalAssetValue: 4_000 },
+  }, 10);
+  assert.equal(merged[0]?.accountId, 99);
+  assert.equal(merged[0]?.accountValue, 5_000);
+  assert.equal(merged.some((row) => row.accountId === 1), true);
 });
 
 test("accountEquity prefers the larger official account value field", () => {
@@ -157,6 +171,21 @@ test("rankTrackedAccounts ignores invalid accounts and counts self-trades once",
   );
 });
 
+test("rankTrackedAccounts ignores the Robinhood public pool account", () => {
+  const poolTrade: Trade = {
+    ...trades[0],
+    tradeId: "pool-1",
+    txHash: "pool-hash",
+    askAccountId: 281474976710654,
+    bidAccountId: 5,
+    usdAmount: 9_999_999,
+  };
+  const ranked = rankTrackedAccounts([poolTrade], 10);
+
+  assert.equal(ranked.whales.some((account) => account.accountId === 281474976710654), false);
+  assert.equal(ranked.whales[0]?.accountId, 5);
+});
+
 test("rankTrackedAccounts clamps result limits", () => {
   const ranked = rankTrackedAccounts(trades, 0);
 
@@ -171,4 +200,33 @@ test("summarizeTrackedHistory returns zero metrics for an empty observation", ()
   assert.equal(summary.observedNotional, 0);
   assert.equal(summary.firstSeen, 0);
   assert.deepEqual(summary.symbols, []);
+});
+
+test("freezeTrackedSample ranks only the provided fills and does not keep unused markets", () => {
+  const frozen = freezeTrackedSample(
+    trades.filter((trade) => trade.symbol === "ETH"),
+    ["ETH"],
+    { 1: 9_000 },
+    10,
+  );
+  assert.deepEqual(frozen.markets, ["ETH"]);
+  assert.equal(frozen.sampledTrades, 1);
+  assert.equal(frozen.whales[0]?.accountId, 1);
+  assert.equal(frozen.whales[0]?.accountValue, 9_000);
+  assert.equal(
+    frozen.whales.some((row) => row.symbols.includes("BTC")),
+    false,
+  );
+});
+
+test("collectActiveAccountIds keeps first-seen public accounts and skips the pool", () => {
+  const ids = collectActiveAccountIds(
+    [
+      { askAccountId: 281474976710654, bidAccountId: 9 },
+      { askAccountId: 9, bidAccountId: 11 },
+      { askAccountId: 0, bidAccountId: 12 },
+    ],
+    2,
+  );
+  assert.deepEqual(ids, [9, 11]);
 });

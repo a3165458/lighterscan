@@ -12,7 +12,7 @@ test("English key resolves to English chrome, not the key", () => {
 
 test("Chinese key resolves to Chinese chrome", () => {
   assert.equal(t("zh", "nav.markets"), "市场");
-  assert.equal(t("zh", "nav.leaderboard"), "排行榜");
+  assert.equal(t("zh", "nav.leaderboard"), "积分");
   assert.equal(t("zh", "nav.tape"), "实时成交");
   assert.equal(t("zh", "nav.trackers"), "大户追踪");
   assert.equal(t("zh", "home.title"), "市场、账户与成交流");
@@ -20,6 +20,12 @@ test("Chinese key resolves to Chinese chrome", () => {
   assert.equal(t("zh", "search.close"), "关闭");
   assert.equal(t("zh", "history.pnl"), "预估盈亏");
   assert.equal(t("zh", "account.estRealized"), "预估已实现");
+  assert.equal(t("zh", "stats.volumeCurve"), "小时成交额");
+  assert.equal(t("zh", "filter.all"), "全部");
+  assert.equal(t("zh", "liq.emptyMarket", { market: "BTC" }), "没有 BTC 的公开清算。");
+  assert.notEqual(t("zh", "stats.empty"), "采集器写入第一个小时后才会出现曲线。");
+  assert.equal(t("zh", "tracker.sample"), "累计观察");
+  assert.match(t("zh", "tracker.subtitle"), /最早一笔记到现在/);
   assert.equal(t("zh", "tape.live"), "实时");
   assert.equal(t("zh", "tape.connecting"), "连接中");
   assert.equal(t("zh", "account.historyPartial", { count: 1500 }), "已汇总前 1500 笔历史成交");

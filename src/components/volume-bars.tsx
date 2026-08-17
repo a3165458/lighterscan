@@ -15,8 +15,8 @@ export function VolumeBars({
   const max = Math.max(...rows.map((r) => r.value), 1);
   const total = rows.reduce((s, r) => s + r.value, 0);
   return (
-    <section className="panel p-4">
-      <div className="mb-4 flex items-end justify-between gap-3">
+    <section className="panel flex h-[32rem] flex-col p-4">
+      <div className="mb-3 flex shrink-0 items-end justify-between gap-3">
         <div>
           <h2 className="text-sm font-semibold">{title}</h2>
           {hint ? <p className="mt-0.5 text-xs text-muted">{hint}</p> : null}
@@ -28,13 +28,22 @@ export function VolumeBars({
           <div className="text-sm font-semibold tabular">{compactUsd(total)}</div>
         </div>
       </div>
-      <div className="space-y-2">
-        {rows.map((row) => {
+      <div className="min-h-0 flex-1 space-y-2 overflow-y-auto overscroll-contain pr-1">
+        {rows.map((row, index) => {
+          const share = total > 0 ? (row.value / total) * 100 : 0;
           const inner = (
             <>
-              <div className="mb-1 flex items-center justify-between text-xs">
-                <span className="font-medium">{row.label}</span>
-                <span className="tabular text-muted">{compactUsd(row.value)}</span>
+              <div className="mb-1 flex items-center justify-between gap-2 text-xs">
+                <span className="flex min-w-0 items-center gap-2">
+                  <span className="w-5 shrink-0 tabular text-faint">
+                    {String(index + 1).padStart(2, "0")}
+                  </span>
+                  <span className="truncate font-medium">{row.label}</span>
+                </span>
+                <span className="shrink-0 tabular text-muted">
+                  {compactUsd(row.value)}
+                  <span className="ml-2 text-faint">{share.toFixed(1)}%</span>
+                </span>
               </div>
               <div className="h-1.5 overflow-hidden rounded-full bg-hover">
                 <div
@@ -52,7 +61,6 @@ export function VolumeBars({
             <div key={row.label}>{inner}</div>
           );
         })}
-
       </div>
     </section>
   );

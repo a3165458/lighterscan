@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useState } from "react";
 import { Sparkline } from "@/components/sparkline";
 import { TokenIcon } from "@/components/token-icon";
 import { useI18n } from "@/components/i18n-provider";
@@ -13,27 +14,57 @@ import {
   openInterestUsd,
   pnlClass,
 } from "@/lib/format";
+import { readWatchlist, toggleWatchlist } from "@/lib/watchlist";
 import type { AssetClass, Market } from "@/lib/types";
 
 type Filter = "all" | AssetClass;
 type SortKey = "volume24h" | "trades24h" | "change24h" | "openInterest" | "lastPrice";
 
+const SORTS = new Set<SortKey>([
+  "volume24h",
+  "trades24h",
+  "change24h",
+  "openInterest",
+  "lastPrice",
+]);
+
 export function MarketTable({ markets }: { markets: Market[] }) {
   const { t } = useI18n();
-  const [filter, setFilter] = useState<Filter>("all");
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const filterParam = searchParams.get("class");
+  const sortParam = searchParams.get("sort");
+  const filter: Filter =
+    filterParam === "crypto" || filterParam === "rwa" || filterParam === "spot"
+      ? filterParam
+      : "all";
+  const sort: SortKey = SORTS.has(sortParam as SortKey)
+    ? (sortParam as SortKey)
+    : "volume24h";
   const [q, setQ] = useState("");
-  const [sort, setSort] = useState<SortKey>("volume24h");
+  const [watched, setWatched] = useState<string[]>(() => readWatchlist());
 
-  const rows = useMemo(() => {
-    const query = q.trim().toUpperCase();
-    return markets
-      .filter((m) => (filter === "all" ? true : m.assetClass === filter))
-      .filter((m) => !query || m.symbol.toUpperCase().includes(query))
-      .sort((a, b) => {
-        if (sort === "change24h") return Math.abs(b.change24h) - Math.abs(a.change24h);
-        return (b[sort] as number) - (a[sort] as number);
-      });
-  }, [markets, filter, q, sort]);
+  function updateQuery(next: { class?: Filter; sort?: SortKey }) {
+    const params = new URLSearchParams(searchParams.toString());
+    const nextFilter = next.class ?? filter;
+    const nextSort = next.sort ?? sort;
+    if (nextFilter === "all") params.delete("class");
+    else params.set("class", nextFilter);
+    if (nextSort === "volume24h") params.delete("sort");
+    else params.set("sort", nextSort);
+    const query = params.toString();
+    router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false });
+  }
+
+  const query = q.trim().toUpperCase();
+  const rows = markets
+    .filter((m) => (filter === "all" ? true : m.assetClass === filter))
+    .filter((m) => !query || m.symbol.toUpperCase().includes(query))
+    .sort((a, b) => {
+      if (sort === "change24h") return Math.abs(b.change24h) - Math.abs(a.change24h);
+      return (b[sort] as number) - (a[sort] as number);
+    });
 
   const tabs: { id: Filter; label: string }[] = [
     { id: "all", label: t("table.all") },
@@ -51,7 +82,7 @@ export function MarketTable({ markets }: { markets: Market[] }) {
             <button
               key={tab.id}
               type="button"
-              onClick={() => setFilter(tab.id)}
+              onClick={() => updateQuery({ class: tab.id })}
               className={`rounded-full px-3 py-1 ${
                 filter === tab.id ? "bg-card text-ink shadow-sm" : "text-muted"
               }`}
@@ -75,17 +106,17 @@ export function MarketTable({ markets }: { markets: Market[] }) {
               <th className="px-3 py-2.5 font-medium">{t("table.last")}</th>
               <th className="px-3 py-2.5 font-medium">{t("table.change")}</th>
               <th className="px-3 py-2.5 font-medium">
-                <button type="button" onClick={() => setSort("volume24h")}>
+                <button type="button" onClick={() => updateQuery({ sort: "volume24h" })}>
                   {t("table.volume")}
                 </button>
               </th>
               <th className="px-3 py-2.5 font-medium">
-                <button type="button" onClick={() => setSort("trades24h")}>
+                <button type="button" onClick={() => updateQuery({ sort: "trades24h" })}>
                   {t("table.trades")}
                 </button>
               </th>
               <th className="px-3 py-2.5 font-medium">
-                <button type="button" onClick={() => setSort("openInterest")}>
+                <button type="button" onClick={() => updateQuery({ sort: "openInterest" })}>
                   {t("table.oi")}
                 </button>
               </th>
@@ -104,6 +135,18 @@ export function MarketTable({ markets }: { markets: Market[] }) {
                         {m.marketType}
                       </span>
                     </span>
+                    <button
+                      type="button"
+                      className="ml-1 text-[11px] text-muted hover:text-ink"
+                      onClick={(event) => {
+                        event.preventDefault();
+                        setWatched(toggleWatchlist(m.symbol));
+                      }}
+                    >
+                      {watched.includes(m.symbol.toUpperCase())
+                        ? t("watch.remove")
+                        : t("watch.add")}
+                    </button>
                   </Link>
                 </td>
                 <td className="px-3 py-2.5 tabular">{formatPrice(m.lastPrice)}</td>

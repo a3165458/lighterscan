@@ -1,6 +1,40 @@
 import type { HistoryFill } from "./history-map.ts";
 import type { Trade } from "./types.ts";
 
+export const PUBLIC_POOL_ACCOUNT_INDEX = 281474976710654;
+const MAX_PUBLIC_ACCOUNT_INDEX = 10_000_000;
+const PROTOCOL_ACCOUNT_INDEXES = new Set([
+  PUBLIC_POOL_ACCOUNT_INDEX,
+  281474976710655, // 48-bit protocol sentinel
+]);
+
+export function collectActiveAccountIds(
+  trades: Array<Pick<Trade, "askAccountId" | "bidAccountId">>,
+  limit = 16,
+): number[] {
+  const ids: number[] = [];
+  const seen = new Set<number>();
+  const safeLimit = Math.min(Math.max(Math.trunc(limit) || 0, 1), 40);
+  for (const trade of trades) {
+    for (const id of [trade.askAccountId, trade.bidAccountId]) {
+      if (!isPublicUserAccount(id) || seen.has(id)) continue;
+      seen.add(id);
+      ids.push(id);
+      if (ids.length >= safeLimit) return ids;
+    }
+  }
+  return ids;
+}
+
+export function isPublicUserAccount(accountId: number): boolean {
+  return (
+    Number.isSafeInteger(accountId) &&
+    accountId > 0 &&
+    accountId < MAX_PUBLIC_ACCOUNT_INDEX &&
+    !PROTOCOL_ACCOUNT_INDEXES.has(accountId)
+  );
+}
+
 export type TrackerMetrics = {
   accountId: number;
   tradeCount: number;
@@ -23,7 +57,7 @@ export type TrackerMetrics = {
 
 export type TrackerHistorySummary = Omit<TrackerMetrics, "accountId">;
 
-type MutableMetrics = Omit<
+export type MutableMetrics = Omit<
   TrackerMetrics,
   | "averageNotional"
   | "makerShare"
@@ -74,7 +108,7 @@ function addObservation(
   else metrics.sellTrades += 1;
 }
 
-function finalizeMetrics(metrics: MutableMetrics): TrackerMetrics {
+export function finalizeMetrics(metrics: MutableMetrics): TrackerMetrics {
   const activeMinutes = Math.max(
     1,
     (metrics.lastSeen - metrics.firstSeen) / 60_000,
@@ -95,6 +129,57 @@ function finalizeMetrics(metrics: MutableMetrics): TrackerMetrics {
   };
 }
 
+export function trackerTradeKey(trade: Pick<Trade, "marketId" | "tradeId" | "txHash">): string {
+  const identity = trade.txHash || trade.tradeId;
+  return identity ? `${trade.marketId}:${identity}` : "";
+}
+
+export function applyTradeToAccounts(
+  accounts: Map<number, MutableMetrics>,
+  trade: Trade,
+): void {
+  const notional = Math.abs(trade.usdAmount || trade.price * trade.size);
+  const symbol = trade.symbol || `#${trade.marketId}`;
+  const makerAccountId = trade.isMakerAsk
+    ? trade.askAccountId
+    : trade.bidAccountId;
+  const participants: Array<{
+    accountId: number;
+    role: "maker" | "taker";
+    side: "buy" | "sell";
+  }> = [
+    {
+      accountId: trade.askAccountId,
+      role: trade.askAccountId === makerAccountId ? "maker" : "taker",
+      side: "sell",
+    },
+    {
+      accountId: trade.bidAccountId,
+      role: trade.bidAccountId === makerAccountId ? "maker" : "taker",
+      side: "buy",
+    },
+  ];
+  const observedAccounts = new Set<number>();
+  for (const participant of participants) {
+    if (!isPublicUserAccount(participant.accountId) || observedAccounts.has(participant.accountId)) {
+      continue;
+    }
+    observedAccounts.add(participant.accountId);
+    let metrics = accounts.get(participant.accountId);
+    if (!metrics) {
+      metrics = createMetrics(participant.accountId);
+      accounts.set(participant.accountId, metrics);
+    }
+    addObservation(metrics, {
+      notional,
+      symbol,
+      timestamp: trade.timestamp,
+      role: participant.role,
+      side: participant.side,
+    });
+  }
+}
+
 export function rankTrackedAccounts(
   trades: Trade[],
   limit = 20,
@@ -103,50 +188,10 @@ export function rankTrackedAccounts(
   const seen = new Set<string>();
 
   for (const trade of trades) {
-    const identity = trade.txHash || trade.tradeId;
-    const key = identity ? `${trade.marketId}:${identity}` : "";
+    const key = trackerTradeKey(trade);
     if (key && seen.has(key)) continue;
     if (key) seen.add(key);
-
-    const notional = Math.abs(
-      trade.usdAmount || trade.price * trade.size,
-    );
-    const symbol = trade.symbol || `#${trade.marketId}`;
-    const makerAccountId = trade.isMakerAsk
-      ? trade.askAccountId
-      : trade.bidAccountId;
-    const participants = [
-      {
-        accountId: trade.askAccountId,
-        role: trade.askAccountId === makerAccountId ? "maker" : "taker",
-        side: "sell",
-      },
-      {
-        accountId: trade.bidAccountId,
-        role: trade.bidAccountId === makerAccountId ? "maker" : "taker",
-        side: "buy",
-      },
-    ] as const;
-
-    const observedAccounts = new Set<number>();
-    for (const participant of participants) {
-      if (participant.accountId <= 0 || observedAccounts.has(participant.accountId)) {
-        continue;
-      }
-      observedAccounts.add(participant.accountId);
-      let metrics = accounts.get(participant.accountId);
-      if (!metrics) {
-        metrics = createMetrics(participant.accountId);
-        accounts.set(participant.accountId, metrics);
-      }
-      addObservation(metrics, {
-        notional,
-        symbol,
-        timestamp: trade.timestamp,
-        role: participant.role,
-        side: participant.side,
-      });
-    }
+    applyTradeToAccounts(accounts, trade);
   }
 
   const safeLimit = Math.min(Math.max(Math.trunc(limit), 1), 100);
@@ -195,6 +240,81 @@ export function applyAccountEquities(
       )
       .slice(0, Math.min(Math.max(Math.trunc(limit) || whales.length, 1), 100)),
     highFrequency: [],
+  };
+}
+
+export function mergeKnownAccountValues(
+  whales: TrackerMetrics[],
+  equities: Record<number, { collateral?: number; totalAssetValue?: number }>,
+  limit = 20,
+): TrackerMetrics[] {
+  const byId = new Map<number, TrackerMetrics>();
+  for (const row of whales) {
+    const official = accountEquity(equities[row.accountId] ?? {});
+    byId.set(row.accountId, {
+      ...row,
+      accountValue: official || row.accountValue,
+    });
+  }
+  for (const [rawId, equity] of Object.entries(equities)) {
+    const accountId = Number(rawId);
+    if (!isPublicUserAccount(accountId) || byId.has(accountId)) continue;
+    const accountValue = accountEquity(equity);
+    if (accountValue <= 0) continue;
+    byId.set(accountId, {
+      ...finalizeMetrics(createMetrics(accountId)),
+      accountValue,
+    });
+  }
+  return [...byId.values()]
+    .sort(
+      (a, b) =>
+        b.accountValue - a.accountValue ||
+        b.observedNotional - a.observedNotional ||
+        b.largestTrade - a.largestTrade,
+    )
+    .slice(0, Math.min(Math.max(Math.trunc(limit) || 20, 1), 100));
+}
+
+export type FrozenTrackerSample = {
+  whales: TrackerMetrics[];
+  sampledTrades: number;
+  windowStart: number;
+  windowEnd: number;
+  markets: string[];
+};
+
+export function freezeTrackedSample(
+  trades: Trade[],
+  markets: string[],
+  equities: Record<number, number> = {},
+  limit = 20,
+): FrozenTrackerSample {
+  const ranking = rankTrackedAccounts(trades, 40);
+  const whales = ranking.whales
+    .map((account) => ({
+      ...account,
+      accountValue: equities[account.accountId] ?? account.accountValue,
+    }))
+    .sort(
+      (a, b) =>
+        b.accountValue - a.accountValue ||
+        b.observedNotional - a.observedNotional ||
+        b.largestTrade - a.largestTrade,
+    )
+    .slice(0, Math.min(Math.max(Math.trunc(limit) || 20, 1), 100));
+  let windowStart = Number.POSITIVE_INFINITY;
+  let windowEnd = 0;
+  for (const trade of trades) {
+    windowStart = Math.min(windowStart, trade.timestamp);
+    windowEnd = Math.max(windowEnd, trade.timestamp);
+  }
+  return {
+    whales,
+    sampledTrades: trades.length,
+    windowStart: Number.isFinite(windowStart) ? windowStart : 0,
+    windowEnd,
+    markets,
   };
 }
 

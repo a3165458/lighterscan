@@ -17,10 +17,12 @@ import { t } from "@/lib/i18n";
 import { getRequestLang } from "@/lib/lang-server";
 import {
   getCandles,
+  getFundingRates,
   getMarket,
   getOrderBook,
   getRecentTrades,
 } from "@/lib/rh";
+import { pickMarketFunding } from "@/lib/funding";
 import { publicRealtimeTransport } from "@/lib/shared-cache";
 import { mergeHistoricalSeries } from "@/lib/series";
 
@@ -37,22 +39,28 @@ export async function generateMetadata({
 
 export default async function MarketPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ symbol: string }>;
+  searchParams: Promise<{ tf?: string }>;
 }) {
   const { symbol } = await params;
+  const { tf: rawTf } = await searchParams;
   const lang = await getRequestLang();
   const market = await getMarket(symbol);
   if (!market) notFound();
+  const tf = rawTf === "4h" || rawTf === "1d" ? rawTf : "1h";
+  const countBack = tf === "1d" ? 90 : tf === "4h" ? 90 : 72;
 
-  const [candles, trades, book] = await Promise.all([
-    getCandles(market.marketId, "1h", 72).catch(() => []),
+  const [candles, trades, book, fundingRows] = await Promise.all([
+    getCandles(market.marketId, tf, countBack).catch(() => []),
     getRecentTrades(market.marketId, 40).catch(() => []),
     getOrderBook(market.marketId, 16).catch(() => ({
       marketId: market.marketId,
       asks: [],
       bids: [],
     })),
+    getFundingRates().catch(() => []),
   ]);
 
   const seeded = trades.map((row) => ({ ...row, symbol: market.symbol }));
@@ -127,18 +135,26 @@ export default async function MarketPage({
           }
         />
         <StatCard
-          label={t(lang, "market.mark")}
+          label={t(lang, "market.funding")}
           value={
-            market.markPrice
-              ? formatPrice(market.markPrice)
-              : formatPrice(market.lastPrice)
+            pickMarketFunding(fundingRows, market.marketId)
+              ? `${((pickMarketFunding(fundingRows, market.marketId)?.lighter ?? 0) * 100).toFixed(4)}%`
+              : "—"
           }
-          hint={
-            market.indexPrice
-              ? t(lang, "market.index", { value: formatPrice(market.indexPrice) })
-              : t(lang, "market.lastTrade")
-          }
+          hint={`${t(lang, "market.spread")} ${formatPrice((market.markPrice || market.lastPrice) - (market.indexPrice || market.lastPrice))}`}
         />
+      </div>
+
+      <div className="flex gap-2 text-xs">
+        {(["1h", "4h", "1d"] as const).map((value) => (
+          <Link
+            key={value}
+            href={`/markets/${encodeURIComponent(market.symbol)}?tf=${value}`}
+            className={`rounded-full px-3 py-1 ${tf === value ? "bg-hover text-ink" : "text-muted"}`}
+          >
+            {t(lang, value === "1h" ? "chart.1h" : value === "4h" ? "chart.4h" : "chart.1d")}
+          </Link>
+        ))}
       </div>
 
       <PriceChart

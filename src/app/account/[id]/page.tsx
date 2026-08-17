@@ -186,6 +186,31 @@ export default async function AccountPage({
         />
       </section>
 
+      {history.fills.some((fill) => /liquidat/i.test(fill.kind)) ? (
+        <section className="panel overflow-hidden">
+          <div className="border-b border-line px-4 py-3 text-sm font-semibold">
+            {t(lang, "account.liqs")}
+          </div>
+          <ul>
+            {history.fills
+              .filter((fill) => /liquidat/i.test(fill.kind))
+              .slice(0, 12)
+              .map((fill) => (
+                <li
+                  key={`${fill.hash}-${fill.timestamp}`}
+                  className="flex items-center justify-between border-b border-line px-4 py-2 text-sm last:border-0"
+                >
+                  <span>{fill.symbol || fill.marketId}</span>
+                  <span className="tabular">{compactUsd(fill.usdAmount)}</span>
+                  <Link href={`/logs/${fill.hash}`} className="font-mono text-xs text-muted">
+                    {fill.hash.slice(0, 10)}
+                  </Link>
+                </li>
+              ))}
+          </ul>
+        </section>
+      ) : null}
+
       {primary.assets.length ? (
         <section className="panel overflow-hidden">
           <div className="border-b border-line px-4 py-3 text-sm font-semibold">

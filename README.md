@@ -23,12 +23,24 @@ Search from the header (`⌘K`) by market symbol, account index, or `0x` address
 
 ```bash
 npm install
+cp .env.example .env.local
 npm run dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000).
 
-RH rate-limits hard. Responses are cached in memory; live tape and account fills come from the public WebSocket.
+RH rate-limits hard. Locally, REST responses stay in memory. In production they also write through to Upstash Redis so every Vercel instance shares the same hot data.
+
+## Production on Vercel
+
+The site can scale on Vercel. The official Lighter API cannot. Deploy it like this:
+
+1. Create an Upstash Redis (REST) database and set `UPSTASH_REDIS_REST_URL` + `UPSTASH_REDIS_REST_TOKEN`.
+2. Set `CRON_SECRET`. Vercel Cron will call `/api/cron/warm` every 5 minutes (Pro plan) to refresh overview, liquidations, positions, and hourly volume into Redis.
+3. Run the collector as a **long-lived process** somewhere else (`npm run collector`). Serverless cannot hold the public WebSocket. The collector writes the live snapshot that `/liquidations`, `/positions`, `/tape`, and `/trackers` read.
+4. Do **not** set `PUBLIC_REALTIME_MODE=direct` in production. That makes every browser open its own official WebSocket.
+
+HTML no longer reads language/theme cookies on the server, so market pages can stay on the CDN. Language and theme still switch in the browser.
 
 ## Honest gaps vs litscan.io
 

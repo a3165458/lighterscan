@@ -1,5 +1,5 @@
+import { Suspense } from "react";
 import Link from "next/link";
-import { connection } from "next/server";
 import { LeaderList } from "@/components/leader-list";
 import { LiveTape } from "@/components/live-tape";
 import { MarketTable } from "@/components/market-table";
@@ -15,18 +15,18 @@ import { publicRealtimeTransport } from "@/lib/shared-cache";
 export const revalidate = 15;
 
 export default async function HomePage() {
-  await connection();
   const [data, lang] = await Promise.all([getOverview(), getRequestLang()]);
   const perps = data.markets.filter((m) => m.marketType === "perp");
-  const movers = [...perps]
-    .filter((m) => m.volume24h > 10_000)
+  const liquid = perps.filter((m) => m.volume24h > 10_000);
+  const gainers = [...liquid]
     .sort((a, b) => b.change24h - a.change24h)
-    .slice(0, 8);
-  const volumeLeaders = perps.slice(0, 5);
-  const tradeLeaders = [...perps]
-    .sort((a, b) => b.trades24h - a.trades24h)
-    .slice(0, 5);
-  const breakdown = perps.slice(0, 10).map((m) => ({
+    .slice(0, 6);
+  const losers = [...liquid]
+    .sort((a, b) => a.change24h - b.change24h)
+    .slice(0, 6);
+  const volumeLeaders = perps;
+  const tradeLeaders = [...perps].sort((a, b) => b.trades24h - a.trades24h);
+  const breakdown = perps.map((m) => ({
     label: m.symbol,
     value: m.volume24h,
     href: `/markets/${encodeURIComponent(m.symbol)}`,
@@ -83,33 +83,40 @@ export default async function HomePage() {
         </div>
       ) : null}
 
-      <section>
-        <div className="mb-3">
-          <h2 className="text-sm font-semibold">{t(lang, "home.discovery")}</h2>
-          <p className="text-xs text-muted">{t(lang, "home.discoveryHint")}</p>
-        </div>
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          {movers.map((m) => (
-            <Link
-              key={m.symbol}
-              href={`/markets/${encodeURIComponent(m.symbol)}`}
-              className="panel flex items-center gap-3 px-3 py-3 hover:bg-hover"
-            >
-              <TokenIcon symbol={m.symbol} />
-              <div className="min-w-0 flex-1">
-                <div className="flex items-center justify-between gap-2">
-                  <span className="font-semibold">{m.symbol}</span>
-                  <span className={`text-sm tabular ${pnlClass(m.change24h)}`}>
-                    {formatPct(m.change24h)}
-                  </span>
-                </div>
-                <div className="text-xs text-muted">
-                  {t(lang, "home.dailyVolume", { value: compactUsd(m.volume24h) })}
-                </div>
-              </div>
-            </Link>
-          ))}
-        </div>
+      <section className="grid gap-4 lg:grid-cols-2">
+        {[
+          { title: t(lang, "home.gainers"), rows: gainers },
+          { title: t(lang, "home.losers"), rows: losers },
+        ].map((group) => (
+          <div key={group.title}>
+            <div className="mb-3">
+              <h2 className="text-sm font-semibold">{group.title}</h2>
+              <p className="text-xs text-muted">{t(lang, "home.discoveryHint")}</p>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2">
+              {group.rows.map((m) => (
+                <Link
+                  key={m.symbol}
+                  href={`/markets/${encodeURIComponent(m.symbol)}`}
+                  className="panel flex items-center gap-3 px-3 py-3 hover:bg-hover"
+                >
+                  <TokenIcon symbol={m.symbol} />
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="font-semibold">{m.symbol}</span>
+                      <span className={`text-sm tabular ${pnlClass(m.change24h)}`}>
+                        {formatPct(m.change24h)}
+                      </span>
+                    </div>
+                    <div className="text-xs text-muted">
+                      {t(lang, "home.dailyVolume", { value: compactUsd(m.volume24h) })}
+                    </div>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          </div>
+        ))}
       </section>
 
       <div className="grid gap-4 lg:grid-cols-3">
@@ -134,7 +141,9 @@ export default async function HomePage() {
       </div>
 
       <div className="grid items-start gap-4 lg:grid-cols-[1.4fr_0.8fr]">
-        <MarketTable markets={data.markets} />
+        <Suspense>
+          <MarketTable markets={data.markets} />
+        </Suspense>
         <LiveTape
           markets={tapeMarkets}
           title={t(lang, "tape.title")}
