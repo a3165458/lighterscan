@@ -8,7 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "collector": "tsx src/collector/index.ts",
-    "test": "node --test --experimental-strip-types src/lib/i18n.test.ts src/lib/series.test.ts src/lib/history.test.ts src/lib/pnl.test.ts src/lib/format.test.ts src/lib/tracker-metrics.test.ts src/lib/rh-retry.test.ts src/lib/realtime.test.ts src/lib/public-rate-limit.test.ts src/lib/account-stats.test.ts src/lib/liquidations.test.ts src/lib/tape-filter.test.ts src/lib/funding.test.ts src/lib/market-filter.test.ts src/lib/cache.test.ts src/lib/tracker-ledger.test.ts src/lib/poll.test.ts"
+    "test": "node --test --experimental-strip-types src/lib/i18n.test.ts src/lib/series.test.ts src/lib/history.test.ts src/lib/pnl.test.ts src/lib/format.test.ts src/lib/tracker-metrics.test.ts src/lib/rh-retry.test.ts src/lib/realtime.test.ts src/lib/public-rate-limit.test.ts src/lib/account-stats.test.ts src/lib/liquidations.test.ts src/lib/tape-filter.test.ts src/lib/funding.test.ts src/lib/market-filter.test.ts src/lib/cache.test.ts src/lib/tracker-ledger.test.ts src/lib/poll.test.ts src/lib/shared-kv.test.ts src/lib/shared-cache.test.ts src/lib/collector-io.test.ts"
   },
   "dependencies": {
     "@upstash/ratelimit": "^2.0.8",
@@ -17,6 +17,7 @@
     "next": "16.3.1",
     "react": "19.2.8",
     "react-dom": "19.2.8",
+    "redis": "^6.2.1",
     "tsx": "^4.23.12",
     "ws": "^8.21.3"
   },

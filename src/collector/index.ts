@@ -40,7 +40,12 @@ import {
   type TrackerLedger,
 } from "../lib/tracker-ledger.ts";
 import {
-  getSharedRedis,
+  COLLECTOR_HEARTBEAT_MS,
+  COLLECTOR_LEDGER_FLUSH_MS,
+  COLLECTOR_PUBLISH_MS,
+} from "../lib/collector-io.ts";
+import {
+  isSharedCacheConfigured,
   loadOrCreateTrackerLedger,
   readPublicRealtimeSnapshot,
   writeHourlyStat,
@@ -54,8 +59,8 @@ const MARKET_LIMIT = Math.min(
   Math.max(1, Number(process.env.COLLECTOR_MARKET_LIMIT ?? 40)),
 );
 const TRADE_BUFFER_LIMIT = 1_200;
-const PUBLISH_INTERVAL_MS = 1_000;
-const HEARTBEAT_INTERVAL_MS = 5_000;
+const PUBLISH_INTERVAL_MS = COLLECTOR_PUBLISH_MS;
+const HEARTBEAT_INTERVAL_MS = COLLECTOR_HEARTBEAT_MS;
 const MARKET_REFRESH_INTERVAL_MS = 5 * 60_000;
 const PING_INTERVAL_MS = 30_000;
 const EQUITY_REFRESH_INTERVAL_MS = 45_000;
@@ -80,6 +85,7 @@ const accountEquities = new Map<
 const accountPositions = new Map<number, AccountPosition[]>();
 let ledger: TrackerLedger = emptyTrackerLedger();
 let ledgerDirty = false;
+let lastLedgerFlushAt = 0;
 
 async function loadMarkets(): Promise<RealtimeMarket[]> {
   const rows = await getMarkets();
@@ -122,11 +128,18 @@ function equityRecord(): Record<
   return Object.fromEntries(accountEquities);
 }
 
-async function persistLedger(): Promise<void> {
+async function persistLedger(force = false): Promise<void> {
   if (!ledgerDirty) return;
+  const now = Date.now();
+  if (!force && now - lastLedgerFlushAt < COLLECTOR_LEDGER_FLUSH_MS) return;
   applyEquitiesToLedger(ledger, equityRecord());
-  await writeTrackerLedger(ledger);
-  ledgerDirty = false;
+  try {
+    await writeTrackerLedger(ledger);
+    ledgerDirty = false;
+    lastLedgerFlushAt = now;
+  } catch {
+    /* Keep dirty and retry on the next flush window. */
+  }
 }
 
 function clearConnectionTimers(): void {
@@ -313,8 +326,8 @@ async function flushHourlyStats(): Promise<void> {
 
 async function main(): Promise<void> {
   loadLocalEnv();
-  if (!getSharedRedis()) {
-    throw new Error("Upstash Redis REST credentials are required");
+  if (!isSharedCacheConfigured()) {
+    throw new Error("Redis credentials are required (REDIS_URL or Upstash REST)");
   }
   // Prime shared REST cache so Vercel instances do not all stampede RH.
   markets = await loadMarkets();

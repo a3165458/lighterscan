@@ -1,4 +1,4 @@
-import { getSharedRedis } from "./shared-cache.ts";
+import { getSharedKv } from "./shared-kv.ts";
 
 type Entry<T> = {
   value: T;
@@ -15,10 +15,10 @@ export function memoryCacheSize(): number {
 }
 
 async function readSharedCache<T>(key: string): Promise<T | undefined> {
-  const redis = getSharedRedis();
-  if (!redis) return undefined;
+  const kv = getSharedKv();
+  if (!kv) return undefined;
   try {
-    const value = await redis.get<T>(`${REDIS_PREFIX}${key}`);
+    const value = await kv.get<T>(`${REDIS_PREFIX}${key}`);
     return value === null || value === undefined ? undefined : value;
   } catch {
     return undefined;
@@ -30,10 +30,10 @@ async function writeSharedCache<T>(
   value: T,
   ttlMs: number,
 ): Promise<void> {
-  const redis = getSharedRedis();
-  if (!redis) return;
+  const kv = getSharedKv();
+  if (!kv) return;
   try {
-    await redis.set(`${REDIS_PREFIX}${key}`, value, {
+    await kv.set(`${REDIS_PREFIX}${key}`, value, {
       ex: Math.max(1, Math.ceil(ttlMs / 1000)),
     });
   } catch {
