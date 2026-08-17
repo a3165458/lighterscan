@@ -5,7 +5,7 @@ import { getRequestLang } from "@/lib/lang-server";
 import { getLeaderboard } from "@/lib/rh";
 import type { LeaderboardEntry } from "@/lib/types";
 
-export const revalidate = 30;
+export const revalidate = 60;
 
 export const metadata = {
   title: "Leaderboard",

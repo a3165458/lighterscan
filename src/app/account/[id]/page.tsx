@@ -19,7 +19,7 @@ import { positionLabels } from "@/lib/position-labels";
 import { getAccountTradeHistory, getAccountVolumeStats } from "@/lib/history";
 import { getAccountByIndex, getMarkets, RhError } from "@/lib/rh";
 
-export const revalidate = 8;
+export const revalidate = 60;
 
 export async function generateMetadata({
   params,

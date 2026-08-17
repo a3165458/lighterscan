@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { TICKER_CACHE_CONTROL } from "@/lib/poll";
 import { isRealtimeSnapshotFresh } from "@/lib/realtime";
 import { getOverview } from "@/lib/rh";
 import {
@@ -32,6 +33,6 @@ export async function GET() {
       realtime,
       updatedAt: snapshot?.updatedAt ?? overview.generatedAt,
     },
-    { headers: { "Cache-Control": "public, s-maxage=5, stale-while-revalidate=15" } },
+    { headers: { "Cache-Control": TICKER_CACHE_CONTROL } },
   );
 }

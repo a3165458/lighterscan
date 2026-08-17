@@ -19,7 +19,7 @@ import { freezeTrackedSample } from "@/lib/tracker-metrics";
 import { getTrackedMarkets, type TrackedMarket } from "@/lib/trackers";
 import type { Trade } from "@/lib/types";
 
-export const revalidate = 20;
+export const revalidate = 60;
 
 export const metadata = {
   title: "Account Trackers",

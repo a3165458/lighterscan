@@ -9,7 +9,7 @@ import { loadPublicLiquidations } from "@/lib/public-boards";
 import { getMarkets } from "@/lib/rh";
 import { readPublicRealtimeSnapshot } from "@/lib/shared-cache";
 
-export const revalidate = 8;
+export const revalidate = 60;
 
 export const metadata = { title: "Liquidations" };
 

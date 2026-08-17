@@ -26,7 +26,7 @@ import { pickMarketFunding } from "@/lib/funding";
 import { publicRealtimeTransport } from "@/lib/shared-cache";
 import { mergeHistoricalSeries } from "@/lib/series";
 
-export const revalidate = 10;
+export const revalidate = 30;
 
 export async function generateMetadata({
   params,

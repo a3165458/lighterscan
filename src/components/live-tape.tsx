@@ -11,6 +11,11 @@ import {
   isPublicRealtimeSnapshot,
   parseLighterTradeMessage,
 } from "@/lib/realtime";
+import {
+  LIVE_POLL_MS,
+  isTabHidden,
+  nextVisiblePollDelay,
+} from "@/lib/poll";
 import { filterTapeTrades, TAPE_MIN_OPTIONS, type TapeMin } from "@/lib/tape-filter";
 import type { Trade } from "@/lib/types";
 
@@ -54,7 +59,14 @@ export function LiveTape({
     let active = true;
     let timer: number | undefined;
 
+    function schedule() {
+      window.clearTimeout(timer);
+      const delay = nextVisiblePollDelay(LIVE_POLL_MS, document.visibilityState);
+      if (delay !== null && active) timer = window.setTimeout(load, delay);
+    }
+
     async function load() {
+      if (!active || isTabHidden(document.visibilityState)) return;
       try {
         const response = await fetch("/api/live");
         const value = (await response.json()) as unknown;
@@ -73,14 +85,21 @@ export function LiveTape({
       } catch {
         if (active) setStatus("connecting");
       } finally {
-        if (active) timer = window.setTimeout(load, 2_000);
+        if (active) schedule();
       }
     }
 
+    function onVisibility() {
+      if (document.visibilityState === "visible") void load();
+      else window.clearTimeout(timer);
+    }
+
+    document.addEventListener("visibilitychange", onVisibility);
     void load();
     return () => {
       active = false;
       window.clearTimeout(timer);
+      document.removeEventListener("visibilitychange", onVisibility);
     };
   }, [idSet, ids.length, max, transport]);
 

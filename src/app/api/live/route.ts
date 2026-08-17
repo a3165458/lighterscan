@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { LIVE_CACHE_CONTROL } from "@/lib/poll";
 import { isRealtimeSnapshotFresh } from "@/lib/realtime";
 import {
   isSharedCacheConfigured,
@@ -27,7 +28,7 @@ export async function GET() {
       { ...snapshot, fresh: isRealtimeSnapshotFresh(snapshot) },
       {
         headers: {
-          "Cache-Control": "public, s-maxage=1, stale-while-revalidate=5",
+          "Cache-Control": LIVE_CACHE_CONTROL,
         },
       },
     );

@@ -6,7 +6,7 @@ import { perpChoices, resolveMarketChoice } from "@/lib/market-filter";
 import { getMarkets } from "@/lib/rh";
 import { publicRealtimeTransport } from "@/lib/shared-cache";
 
-export const revalidate = 30;
+export const revalidate = 60;
 
 export const metadata = {
   title: "Live Trades",
