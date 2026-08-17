@@ -3,6 +3,11 @@
 import { useEffect, useState } from "react";
 import { useI18n } from "@/components/i18n-provider";
 import { compactNum, compactUsd } from "@/lib/format";
+import {
+  TICKER_POLL_MS,
+  isTabHidden,
+  nextVisiblePollDelay,
+} from "@/lib/poll";
 
 type TickerState = {
   dailyVolume: number;
@@ -18,7 +23,18 @@ export function StatusTicker() {
   useEffect(() => {
     let active = true;
     let timer: number | undefined;
+
+    function schedule() {
+      window.clearTimeout(timer);
+      const delay = nextVisiblePollDelay(
+        TICKER_POLL_MS,
+        document.visibilityState,
+      );
+      if (delay !== null && active) timer = window.setTimeout(load, delay);
+    }
+
     async function load() {
+      if (!active || isTabHidden(document.visibilityState)) return;
       try {
         const response = await fetch("/api/ticker");
         const value = (await response.json()) as TickerState;
@@ -26,13 +42,21 @@ export function StatusTicker() {
       } catch {
         if (active) setState(null);
       } finally {
-        if (active) timer = window.setTimeout(load, 8_000);
+        if (active) schedule();
       }
     }
+
+    function onVisibility() {
+      if (document.visibilityState === "visible") void load();
+      else window.clearTimeout(timer);
+    }
+
+    document.addEventListener("visibilitychange", onVisibility);
     void load();
     return () => {
       active = false;
       window.clearTimeout(timer);
+      document.removeEventListener("visibilitychange", onVisibility);
     };
   }, []);
 

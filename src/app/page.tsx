@@ -12,7 +12,7 @@ import { getRequestLang } from "@/lib/lang-server";
 import { getOverview } from "@/lib/rh";
 import { publicRealtimeTransport } from "@/lib/shared-cache";
 
-export const revalidate = 15;
+export const revalidate = 60;
 
 export default async function HomePage() {
   const [data, lang] = await Promise.all([getOverview(), getRequestLang()]);

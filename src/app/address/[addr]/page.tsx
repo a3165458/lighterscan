@@ -18,7 +18,7 @@ import { positionLabels } from "@/lib/position-labels";
 import { explorerLookupId, getAccountTradeHistory } from "@/lib/history";
 import { getAccountsByAddress, getMarkets, RhError } from "@/lib/rh";
 
-export const revalidate = 8;
+export const revalidate = 60;
 
 export async function generateMetadata({
   params,
