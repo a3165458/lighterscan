@@ -1,6 +1,6 @@
 import { createHmac } from "node:crypto";
 import { Ratelimit } from "@upstash/ratelimit";
-import { getSharedRedis } from "./shared-cache.ts";
+import { getSharedRedis, resolveSharedCacheBackend } from "./shared-kv.ts";
 
 export type PublicRateLimitScope = "history" | "search";
 export type PublicRateLimitResult = {
@@ -18,6 +18,10 @@ const limits: Record<PublicRateLimitScope, number> = {
 const limiters = new Map<PublicRateLimitScope, Ratelimit>();
 const localWindows = new Map<string, { count: number; reset: number }>();
 
+/** After Upstash quota/network errors, skip Redis commands for a minute. */
+export const RATE_LIMIT_CIRCUIT_MS = 60_000;
+let circuitOpenUntil = 0;
+
 export function requestFingerprint(headers: Headers, secret: string): string {
   const forwarded =
     headers.get("x-vercel-forwarded-for") ??
@@ -29,7 +33,15 @@ export function requestFingerprint(headers: Headers, secret: string): string {
   return createHmac("sha256", secret).update(identity).digest("hex");
 }
 
-function localLimit(
+export function shouldUseRemoteRateLimit(
+  backend = resolveSharedCacheBackend(),
+  now = Date.now(),
+  circuitUntil = circuitOpenUntil,
+): boolean {
+  return backend === "upstash" && now >= circuitUntil;
+}
+
+export function localPublicRateLimit(
   scope: PublicRateLimitScope,
   identifier: string,
   now: number,
@@ -50,6 +62,21 @@ function localLimit(
   };
 }
 
+export async function settleRateLimit(
+  scope: PublicRateLimitScope,
+  identifier: string,
+  now: number,
+  remote: (() => Promise<PublicRateLimitResult>) | null,
+): Promise<PublicRateLimitResult> {
+  if (!remote) return localPublicRateLimit(scope, identifier, now);
+  try {
+    return await remote();
+  } catch {
+    circuitOpenUntil = now + RATE_LIMIT_CIRCUIT_MS;
+    return localPublicRateLimit(scope, identifier, now);
+  }
+}
+
 export async function checkPublicRateLimit(
   headers: Headers,
   scope: PublicRateLimitScope,
@@ -60,18 +87,14 @@ export async function checkPublicRateLimit(
     process.env.KV_REST_API_TOKEN ??
     "lighterscan-local";
   const identifier = requestFingerprint(headers, secret);
+  const now = Date.now();
+  if (!shouldUseRemoteRateLimit()) {
+    return localPublicRateLimit(scope, identifier, now);
+  }
+
   const redis = getSharedRedis();
   if (!redis) {
-    if (process.env.NODE_ENV === "production") {
-      return {
-        success: false,
-        limit: limits[scope],
-        remaining: 0,
-        reset: Date.now() + 60_000,
-        unavailable: true,
-      };
-    }
-    return localLimit(scope, identifier, Date.now());
+    return localPublicRateLimit(scope, identifier, now);
   }
 
   let limiter = limiters.get(scope);
@@ -84,7 +107,7 @@ export async function checkPublicRateLimit(
     });
     limiters.set(scope, limiter);
   }
-  try {
+  return settleRateLimit(scope, identifier, now, async () => {
     const result = await limiter.limit(identifier);
     return {
       success: result.success,
@@ -92,15 +115,7 @@ export async function checkPublicRateLimit(
       remaining: result.remaining,
       reset: result.reset,
     };
-  } catch {
-    return {
-      success: false,
-      limit: limits[scope],
-      remaining: 0,
-      reset: Date.now() + 60_000,
-      unavailable: true,
-    };
-  }
+  });
 }
 
 export function rateLimitHeaders(
@@ -111,4 +126,10 @@ export function rateLimitHeaders(
     "RateLimit-Remaining": String(result.remaining),
     "RateLimit-Reset": String(Math.ceil(result.reset / 1_000)),
   };
+}
+
+export function resetPublicRateLimitForTests(): void {
+  localWindows.clear();
+  limiters.clear();
+  circuitOpenUntil = 0;
 }
