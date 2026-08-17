@@ -35,7 +35,7 @@ RH rate-limits hard. Locally, REST responses stay in memory. In production they 
 
 The site can scale on Vercel. The official Lighter API cannot. Deploy it like this:
 
-1. Create an Upstash Redis (REST) database and set `UPSTASH_REDIS_REST_URL` + `UPSTASH_REDIS_REST_TOKEN`.
+1. Point the app at Redis. Prefer `REDIS_URL` for a normal TCP Redis. If the server requires `AUTH`, set `REDIS_PASSWORD` as a separate env var (do not commit a `redis://` URL that contains the password). `REDIS_HOST` / `REDIS_PORT` / `REDIS_PASSWORD` also work. If only `UPSTASH_REDIS_REST_URL` + `UPSTASH_REDIS_REST_TOKEN` (or `KV_REST_API_*`) are set, the existing Upstash REST client is used.
 2. Set `CRON_SECRET`. Vercel Cron will call `/api/cron/warm` every 5 minutes (Pro plan) to refresh overview, liquidations, positions, and hourly volume into Redis.
 3. Run the collector as a **long-lived process** somewhere else (`npm run collector`). Serverless cannot hold the public WebSocket. The collector writes the live snapshot that `/liquidations`, `/positions`, `/tape`, and `/trackers` read.
 4. Do **not** set `PUBLIC_REALTIME_MODE=direct` in production. That makes every browser open its own official WebSocket.
