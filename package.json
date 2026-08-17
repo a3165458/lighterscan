@@ -8,7 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "collector": "tsx src/collector/index.ts",
-    "test": "node --test --experimental-strip-types src/lib/i18n.test.ts src/lib/series.test.ts src/lib/history.test.ts src/lib/pnl.test.ts src/lib/format.test.ts src/lib/tracker-metrics.test.ts src/lib/rh-retry.test.ts src/lib/realtime.test.ts src/lib/public-rate-limit.test.ts"
+    "test": "node --test --experimental-strip-types src/lib/i18n.test.ts src/lib/series.test.ts src/lib/history.test.ts src/lib/pnl.test.ts src/lib/format.test.ts src/lib/tracker-metrics.test.ts src/lib/rh-retry.test.ts src/lib/realtime.test.ts src/lib/public-rate-limit.test.ts src/lib/account-stats.test.ts"
   },
   "dependencies": {
     "@upstash/ratelimit": "^2.0.8",

@@ -1,3 +1,4 @@
+import { aggregateVolumeFromFills } from "@/lib/account-stats";
 import { cached } from "@/lib/cache";
 import { RH_EXPLORER } from "@/lib/config";
 import {
@@ -6,8 +7,12 @@ import {
   type ExplorerTrade,
   type HistoryFill,
 } from "@/lib/history-map";
+import type { AccountLiveStats } from "@/lib/types";
 
 export type { ExplorerTrade, HistoryFill } from "@/lib/history-map";
+
+export const ACCOUNT_VOLUME_PAGE_SIZE = 100;
+export const ACCOUNT_VOLUME_MAX_PAGES = 15;
 
 export type HistoryPage = {
   fills: HistoryFill[];
@@ -54,6 +59,39 @@ export async function getAccountTradeHistory(
     nextOffset: offset + rows.length,
     hasMore: rows.length >= safeLimit,
   };
+}
+
+export async function getAccountVolumeStats(
+  accountOrAddress: string,
+  selfIndexes: Array<string | number> = [accountOrAddress],
+  now = Date.now(),
+): Promise<{ stats: AccountLiveStats; complete: boolean; sampled: number }> {
+  const selves = selfIndexes.map(String).join(",");
+  return cached(`ex-vol:${accountOrAddress}:${selves}`, 8_000, async () => {
+    const fills: HistoryFill[] = [];
+    let offset = 0;
+    let complete = true;
+    for (let page = 0; page < ACCOUNT_VOLUME_MAX_PAGES; page += 1) {
+      const result = await getAccountTradeHistory(
+        accountOrAddress,
+        offset,
+        ACCOUNT_VOLUME_PAGE_SIZE,
+        selfIndexes,
+      );
+      fills.push(...result.fills);
+      if (!result.hasMore) {
+        complete = true;
+        break;
+      }
+      offset = result.nextOffset;
+      complete = false;
+    }
+    return {
+      stats: aggregateVolumeFromFills(fills, now),
+      complete,
+      sampled: fills.length,
+    };
+  });
 }
 
 export async function getLogByHash(
