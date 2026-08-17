@@ -11,6 +11,7 @@ import {
   isPublicRealtimeSnapshot,
   parseLighterTradeMessage,
 } from "@/lib/realtime";
+import { filterTapeTrades, TAPE_MIN_OPTIONS, type TapeMin } from "@/lib/tape-filter";
 import type { Trade } from "@/lib/types";
 
 type Seed = { marketId: number; symbol: string };
@@ -21,15 +22,20 @@ export function LiveTape({
   max = 48,
   seed = [],
   transport = "direct",
+  minUsd = 0,
+  showFilter = false,
 }: {
   markets: Seed[];
   title?: string;
   max?: number;
   seed?: Trade[];
   transport?: "direct" | "shared";
+  minUsd?: TapeMin;
+  showFilter?: boolean;
 }) {
   const { t } = useI18n();
   const [trades, setTrades] = useState<Trade[]>(seed);
+  const [min, setMin] = useState<TapeMin>(minUsd);
   const [status, setStatus] = useState<"connecting" | "live" | "idle">(
     seed.length > 0 ? "live" : "connecting",
   );
@@ -50,7 +56,7 @@ export function LiveTape({
 
     async function load() {
       try {
-        const response = await fetch("/api/live", { cache: "no-store" });
+        const response = await fetch("/api/live");
         const value = (await response.json()) as unknown;
         if (!response.ok || !isPublicRealtimeSnapshot(value)) {
           throw new Error("Realtime snapshot unavailable");
@@ -140,16 +146,31 @@ export function LiveTape({
     };
   }, [ids, map, max, seed.length, transport]);
 
+  const visible = filterTapeTrades(trades, { minUsd: min });
   const shown = ids.length === 0 ? "idle" : resolveLiveStatus(status, trades.length > 0);
 
   return (
     <section className="panel overflow-hidden">
-      <div className="flex items-center justify-between border-b border-line px-4 py-3">
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-line px-4 py-3">
         <div>
           <h2 className="text-sm font-semibold">{title || t("tape.title")}</h2>
           <p className="text-xs text-muted">{t("tape.hint")}</p>
         </div>
         <div className="flex items-center gap-2 text-xs text-muted">
+          {showFilter ? (
+            <div className="flex rounded-full bg-elev p-0.5">
+              {TAPE_MIN_OPTIONS.map((value) => (
+                <button
+                  key={value}
+                  type="button"
+                  onClick={() => setMin(value)}
+                  className={`rounded-full px-2 py-1 ${min === value ? "bg-card text-ink" : ""}`}
+                >
+                  {value === 0 ? t("tape.minAny") : compactUsd(value)}
+                </button>
+              ))}
+            </div>
+          ) : null}
           <span className={shown === "live" ? "live-dot" : "h-1.5 w-1.5 rounded-full bg-faint"} />
           {shown === "live"
             ? t("tape.live")
@@ -159,13 +180,13 @@ export function LiveTape({
         </div>
       </div>
       <div className="max-h-[520px] overflow-y-auto">
-        {trades.length === 0 ? (
+        {visible.length === 0 ? (
           <p className="px-4 py-10 text-center text-sm text-muted">
-            {t("tape.waiting")}
+            {trades.length ? t("tape.emptyFilter") : t("tape.waiting")}
           </p>
         ) : (
           <ul>
-            {trades.map((fill) => {
+            {visible.map((fill) => {
               const href = tradeLogHref(fill.txHash);
               const rowClass =
                 "deferred-row grid grid-cols-[72px_1fr_auto] items-center gap-2 px-4 py-2 text-sm";

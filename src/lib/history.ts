@@ -7,6 +7,11 @@ import {
   type ExplorerTrade,
   type HistoryFill,
 } from "@/lib/history-map";
+import {
+  liquidationFromExplorerTrade,
+  type LiquidationRow,
+} from "@/lib/liquidations";
+import { PUBLIC_POOL_ACCOUNT_INDEX } from "@/lib/tracker-metrics";
 import type { AccountLiveStats } from "@/lib/types";
 
 export type { ExplorerTrade, HistoryFill } from "@/lib/history-map";
@@ -122,4 +127,70 @@ export async function getLogByHash(
 
 export function officialLogUrl(hash: string, locale: "zh" | "en" = "zh"): string {
   return `https://robinhoodchain.lighter.xyz/explorer/logs/${hash}?locale=${locale}`;
+}
+
+async function explorerGet<T>(path: string, ttlMs: number): Promise<T> {
+  return cached(`ex:${path}`, ttlMs, async () => {
+    const res = await fetch(`${RH_EXPLORER}${path}`, {
+      headers: {
+        accept: "application/json",
+        "user-agent": "LighterScan/0.1 (+robinhood-lighter explorer)",
+      },
+      cache: "no-store",
+    });
+    const text = await res.text();
+    if (!res.ok) {
+      throw new Error(text.slice(0, 180) || `explorer ${res.status}`);
+    }
+    return (text ? JSON.parse(text) : null) as T;
+  });
+}
+
+const LIQUIDATION_LOG_TYPES = [
+  "LiquidationTrade",
+  "LiquidationTradeWithFunding",
+];
+
+export async function getAccountExplorerLogs(
+  account: string | number,
+  types: string[],
+  limit = 40,
+): Promise<Record<string, unknown>[]> {
+  const safeLimit = Math.min(Math.max(limit, 1), 100);
+  const typeQuery = types
+    .map((type) => `pub_data_type=${encodeURIComponent(type)}`)
+    .join("&");
+  const path = `/accounts/${encodeURIComponent(String(account))}/logs?limit=${safeLimit}&offset=0${typeQuery ? `&${typeQuery}` : ""}`;
+  const rows = await explorerGet<unknown>(path, 8_000);
+  return Array.isArray(rows) ? (rows as Record<string, unknown>[]) : [];
+}
+
+export async function getRecentExplorerLiquidations(
+  marketNames: Record<number, string> = {},
+  extraAccounts: Array<string | number> = [],
+): Promise<LiquidationRow[]> {
+  const accounts = [
+    PUBLIC_POOL_ACCOUNT_INDEX,
+    ...extraAccounts.filter(
+      (id) => String(id) !== String(PUBLIC_POOL_ACCOUNT_INDEX),
+    ),
+  ].slice(0, 6);
+  const pages = await Promise.all(
+    accounts.map((account) =>
+      getAccountExplorerLogs(account, LIQUIDATION_LOG_TYPES, 50).catch(() => []),
+    ),
+  );
+  const rows: LiquidationRow[] = [];
+  const seen = new Set<string>();
+  for (const logs of pages) {
+    for (const raw of logs) {
+      const trade = describeExplorerLog(raw, marketNames);
+      if (!trade) continue;
+      const row = liquidationFromExplorerTrade(trade);
+      if (!row || seen.has(row.tradeId)) continue;
+      seen.add(row.tradeId);
+      rows.push(row);
+    }
+  }
+  return rows.sort((a, b) => b.timestamp - a.timestamp);
 }

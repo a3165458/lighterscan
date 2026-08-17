@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { canLinkAddress, isAddress, isRedactedAddress } from "./format.ts";
 import { resolveLiveStatus } from "./live-status.ts";
-import { mergeHistoricalSeries } from "./series.ts";
+import { hourlyQuoteVolume, mergeHistoricalSeries, sumHourlyVolumes } from "./series.ts";
 import type { Candle } from "./types.ts";
 
 const candle = (t: number, c: number): Candle => ({
@@ -29,6 +29,29 @@ test("hourly price-chart fallback produces a multi-point series", () => {
   assert.equal(merged[0].c, 100);
   assert.equal(merged[2].c, 102.5);
   assert.ok(merged[2].t > merged[0].t);
+});
+
+test("hourly quote volume prefers V and falls back to base * close", () => {
+  const hour = 1_700_000_000_000;
+  const rows = hourlyQuoteVolume([
+    { t: hour + 1, o: 1, h: 1, l: 1, c: 10, v: 2, V: 50 },
+    { t: hour + 2, o: 1, h: 1, l: 1, c: 10, v: 3, V: 0 },
+    { t: hour + 3_600_000, o: 1, h: 1, l: 1, c: 8, v: 1, V: 8 },
+  ]);
+  assert.equal(rows.length, 2);
+  assert.equal(rows[0]?.volume, 80);
+  assert.equal(rows[1]?.volume, 8);
+});
+
+test("sumHourlyVolumes merges markets onto the same hour", () => {
+  const merged = sumHourlyVolumes([
+    [{ t: 3_600_000, volume: 10 }],
+    [{ t: 3_600_000, volume: 5 }, { t: 7_200_000, volume: 2 }],
+  ]);
+  assert.deepEqual(merged, [
+    { t: 3_600_000, volume: 15 },
+    { t: 7_200_000, volume: 2 },
+  ]);
 });
 
 test("empty candles and empty hourly prices stay empty", () => {

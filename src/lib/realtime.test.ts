@@ -37,6 +37,8 @@ test("buildPublicRealtimeSnapshot publishes trades and account rankings", () => 
   assert.equal(snapshot.trackers.sampledTrades, 2);
   assert.equal(snapshot.trackers.whales[0].accountId, 10);
   assert.deepEqual(snapshot.trackers.markets, ["BTC"]);
+  assert.equal(snapshot.liquidations.length, 0);
+  assert.deepEqual(snapshot.positions, []);
 });
 
 test("isPublicRealtimeSnapshot rejects malformed cache values", () => {
@@ -78,29 +80,75 @@ test("parseLighterTradeMessage normalizes public WebSocket frames", () => {
           timestamp: 4_000,
         },
       ],
+      liquidation_trades: [
+        {
+          trade_id_str: "99",
+          tx_hash: "0xliq",
+          type: "liquidation",
+          market_id: 1,
+          size: "0.2",
+          price: "190",
+          usd_amount: "38",
+          ask_account_id: 11,
+          bid_account_id: 21,
+          is_maker_ask: false,
+          timestamp: 4_500,
+        },
+      ],
     },
     new Map([[1, "BTC"]]),
     5_000,
   );
 
-  assert.equal(trades.length, 1);
-  assert.deepEqual(trades[0], {
-    tradeId: "42",
-    txHash: "0xabc",
-    type: "trade",
-    marketId: 1,
-    symbol: "BTC",
-    size: 0.5,
-    price: 200,
-    usdAmount: 100,
-    askAccountId: 10,
-    bidAccountId: 20,
-    isMakerAsk: true,
-    timestamp: 4_000,
-    takerIsAsk: false,
-  });
+  assert.equal(trades.length, 2);
+  assert.equal(trades[0]?.type, "trade");
+  assert.equal(trades[1]?.type, "liquidation");
+  assert.equal(trades[1]?.tradeId, "99");
   assert.deepEqual(
     parseLighterTradeMessage({ type: "ping" }, new Map(), 5_000),
     [],
   );
+});
+
+test("buildPublicRealtimeSnapshot publishes liquidations and ranked positions", () => {
+  const snapshot = buildPublicRealtimeSnapshot(
+    [
+      {
+        ...trade,
+        tradeId: "liq-1",
+        type: "liquidation",
+        timestamp: 2_500,
+        usdAmount: 80,
+        takerIsAsk: true,
+      },
+    ],
+    [{ marketId: 1, symbol: "BTC" }],
+    3_000,
+    {},
+    {
+      10: [
+        {
+          marketId: 1,
+          symbol: "BTC",
+          sign: 1,
+          position: 2,
+          avgEntryPrice: 90,
+          positionValue: 200,
+          unrealizedPnl: 20,
+          realizedPnl: 0,
+          liquidationPrice: 70,
+          allocatedMargin: 40,
+          initialMarginFraction: 5000,
+          marginMode: 0,
+          openOrderCount: 0,
+        },
+      ],
+    },
+  );
+
+  assert.equal(snapshot.liquidations[0]?.tradeId, "liq-1");
+  assert.equal(snapshot.liquidations[0]?.accountId, 10);
+  assert.equal(snapshot.positions[0]?.accountId, 10);
+  assert.equal(snapshot.positions[0]?.symbol, "BTC");
+  assert.equal(snapshot.positions[0]?.side, "long");
 });

@@ -1,17 +1,17 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
   useState,
 } from "react";
-import { setLangAction } from "@/app/actions/lang";
 import {
   htmlLang,
   LANG_COOKIE,
+  parseLang,
   t as lookup,
   type Lang,
   type MsgKey,
@@ -43,18 +43,21 @@ export function I18nProvider({
   initialLang: Lang;
   children: React.ReactNode;
 }) {
-  const router = useRouter();
   const [lang, setLangState] = useState<Lang>(initialLang);
 
+  useEffect(() => {
+    try {
+      const next = parseLang(localStorage.getItem(LANG_COOKIE));
+      setLangState((current) => (current === next ? current : next));
+    } catch {
+      /* ignore */
+    }
+  }, []);
 
-  const setLang = useCallback(
-    (next: Lang) => {
-      setLangState(next);
-      persistLang(next);
-      void setLangAction(next).then(() => router.refresh());
-    },
-    [router],
-  );
+  const setLang = useCallback((next: Lang) => {
+    setLangState(next);
+    persistLang(next);
+  }, []);
 
   const value = useMemo<I18nValue>(
     () => ({

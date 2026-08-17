@@ -19,6 +19,7 @@ import type {
   Overview,
   Trade,
 } from "@/lib/types";
+import { mapFundingRates, type MarketFunding } from "./funding.ts";
 
 export { RH_API, RH_WS } from "@/lib/config";
 
@@ -276,13 +277,15 @@ export function mapTrade(
 export async function getRecentTrades(
   marketId: number,
   limit = 40,
+  options?: { type?: string; symbol?: string },
 ): Promise<Trade[]> {
+  const type = options?.type ? `&type=${encodeURIComponent(options.type)}` : "";
   const data = await rhGet<Record<string, unknown>>(
-    `/api/v1/recentTrades?market_id=${marketId}&limit=${Math.min(limit, 100)}`,
+    `/api/v1/recentTrades?market_id=${marketId}&limit=${Math.min(limit, 100)}${type}`,
     4_000,
   );
-  return ((data.trades as Record<string, unknown>[]) || []).map((t) =>
-    mapTrade(t),
+  return ((data.trades as Record<string, unknown>[]) || []).map((row) =>
+    mapTrade(row, options?.symbol),
   );
 }
 
@@ -439,6 +442,14 @@ export async function getLeaderboard(
     points: num(row.points),
     metadata: String(row.metadata || ""),
   }));
+}
+
+export async function getFundingRates(): Promise<MarketFunding[]> {
+  const data = await rhGet<Record<string, unknown>>(
+    "/api/v1/funding-rates",
+    30_000,
+  );
+  return mapFundingRates(data.funding_rates);
 }
 
 export async function searchQuery(q: string): Promise<{

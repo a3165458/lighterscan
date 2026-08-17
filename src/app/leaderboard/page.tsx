@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { connection } from "next/server";
 import { canLinkAddress, compactNum, publicAddressLabel, shortAddress } from "@/lib/format";
 import { t } from "@/lib/i18n";
 import { getRequestLang } from "@/lib/lang-server";
@@ -17,7 +16,6 @@ export default async function LeaderboardPage({
 }: {
   searchParams: Promise<{ type?: string }>;
 }) {
-  await connection();
   const { type: rawType } = await searchParams;
   const lang = await getRequestLang();
   const type = rawType === "weekly" ? "weekly" : "all";

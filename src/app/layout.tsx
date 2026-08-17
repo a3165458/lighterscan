@@ -2,10 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { I18nProvider } from "@/components/i18n-provider";
 import { Shell } from "@/components/shell";
-import { htmlLang } from "@/lib/i18n";
-import { getRequestLang } from "@/lib/lang-server";
-import { getRequestTheme } from "@/lib/theme-server";
-import { themeClassName } from "@/lib/theme";
+import { DEFAULT_LANG, htmlLang } from "@/lib/i18n";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -42,21 +39,19 @@ try {
 } catch (e) {}
 `;
 
-export default async function RootLayout({ children }: { children: React.ReactNode }) {
-  const [lang, theme] = await Promise.all([getRequestLang(), getRequestTheme()]);
-  const themeClass = themeClassName(theme);
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html
-      lang={htmlLang(lang)}
-      data-lang={lang}
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased${themeClass ? ` ${themeClass}` : ""}`}
+      lang={htmlLang(DEFAULT_LANG)}
+      data-lang={DEFAULT_LANG}
+      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
       suppressHydrationWarning
     >
       <head>
         <script dangerouslySetInnerHTML={{ __html: boot }} />
       </head>
       <body className="min-h-full">
-        <I18nProvider initialLang={lang}>
+        <I18nProvider initialLang={DEFAULT_LANG}>
           <Shell>{children}</Shell>
         </I18nProvider>
       </body>
