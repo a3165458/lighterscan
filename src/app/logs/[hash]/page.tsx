@@ -8,7 +8,7 @@ import { t } from "@/lib/i18n";
 import { getRequestLang } from "@/lib/lang-server";
 import { getMarkets } from "@/lib/rh";
 
-export const revalidate = 15;
+export const revalidate = 60;
 
 export async function generateMetadata({
   params,

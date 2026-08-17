@@ -8,7 +8,7 @@ import { loadPublicPositions } from "@/lib/public-boards";
 import { getMarkets } from "@/lib/rh";
 import { readPublicRealtimeSnapshot } from "@/lib/shared-cache";
 
-export const revalidate = 15;
+export const revalidate = 60;
 
 export const metadata = { title: "Positions" };
 
