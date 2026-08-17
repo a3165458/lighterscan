@@ -22,6 +22,7 @@ test("Chinese key resolves to Chinese chrome", () => {
   assert.equal(t("zh", "account.estRealized"), "预估已实现");
   assert.equal(t("zh", "tape.live"), "实时");
   assert.equal(t("zh", "tape.connecting"), "连接中");
+  assert.equal(t("zh", "account.historyPartial", { count: 1500 }), "已汇总前 1500 笔历史成交");
   assert.notEqual(t("zh", "nav.markets"), t("en", "nav.markets"));
 });
 

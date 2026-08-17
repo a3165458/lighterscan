@@ -32,4 +32,4 @@ RH rate-limits hard. Responses are cached in memory; live tape and account fills
 
 ## Honest gaps vs litscan.io
 
-Litscan on Lighter Core runs a private indexer (hourly volume reconstruction, PnL ranks, integrator flow). This build uses only public RH endpoints, so it does not invent 7-day trader leaderboards. Account volume/fills appear once the public `account_all` socket connects.
+Litscan on Lighter Core runs a private indexer (hourly volume reconstruction, PnL ranks, integrator flow). This build uses only public RH endpoints, so it does not invent 7-day trader leaderboards. Account 24h/7d/all volume is aggregated from the same explorer trade history as the fills table (capped at 1,500 fills). The public `account_all` socket overlays official totals when it actually connects.

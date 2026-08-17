@@ -6,6 +6,7 @@ import { useI18n } from "@/components/i18n-provider";
 import { compactUsd, formatPrice, formatSize, formatTimeOnly } from "@/lib/format";
 import { RH_WS } from "@/lib/config";
 import { resolveLiveStatus } from "@/lib/live-status";
+import { tradeLogHref } from "@/lib/account-stats";
 import {
   isPublicRealtimeSnapshot,
   parseLighterTradeMessage,
@@ -164,36 +165,47 @@ export function LiveTape({
           </p>
         ) : (
           <ul>
-            {trades.map((fill) => (
-              <li
-                key={`${fill.tradeId}-${fill.timestamp}`}
-                className="deferred-row grid grid-cols-[72px_1fr_auto] items-center gap-2 border-b border-line px-4 py-2 text-sm last:border-0"
-              >
-                <Link
-                  href={`/markets/${encodeURIComponent(fill.symbol || String(fill.marketId))}`}
-                  className="font-medium"
-                >
-                  {fill.symbol || fill.marketId}
-                </Link>
-                <div className="min-w-0">
-                  <div className="flex items-center gap-2">
-                    <span className={fill.takerIsAsk ? "text-down" : "text-up"}>
-                      {fill.takerIsAsk ? t("tape.sell") : t("tape.buy")}
-                    </span>
-                    <span className="tabular">{formatSize(fill.size)}</span>
-                    <span className="text-muted">@</span>
-                    <span className="tabular">{formatPrice(fill.price)}</span>
+            {trades.map((fill) => {
+              const href = tradeLogHref(fill.txHash);
+              const rowClass =
+                "deferred-row grid grid-cols-[72px_1fr_auto] items-center gap-2 px-4 py-2 text-sm";
+              const body = (
+                <>
+                  <span className="font-medium">{fill.symbol || fill.marketId}</span>
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className={fill.takerIsAsk ? "text-down" : "text-up"}>
+                        {fill.takerIsAsk ? t("tape.sell") : t("tape.buy")}
+                      </span>
+                      <span className="tabular">{formatSize(fill.size)}</span>
+                      <span className="text-muted">@</span>
+                      <span className="tabular">{formatPrice(fill.price)}</span>
+                    </div>
+                    {fill.type !== "trade" ? (
+                      <div className="truncate text-[11px] text-faint">{fill.type}</div>
+                    ) : null}
                   </div>
-                  {fill.type !== "trade" ? (
-                    <div className="truncate text-[11px] text-faint">{fill.type}</div>
-                  ) : null}
-                </div>
-                <div className="text-right">
-                  <div className="tabular text-sm">{compactUsd(fill.usdAmount)}</div>
-                  <div className="text-[11px] text-faint">{formatTimeOnly(fill.timestamp)}</div>
-                </div>
-              </li>
-            ))}
+                  <div className="text-right">
+                    <div className="tabular text-sm">{compactUsd(fill.usdAmount)}</div>
+                    <div className="text-[11px] text-faint">{formatTimeOnly(fill.timestamp)}</div>
+                  </div>
+                </>
+              );
+              return (
+                <li
+                  key={`${fill.tradeId}-${fill.timestamp}`}
+                  className="border-b border-line last:border-0"
+                >
+                  {href ? (
+                    <Link href={href} className={`${rowClass} hover:bg-hover`}>
+                      {body}
+                    </Link>
+                  ) : (
+                    <div className={rowClass}>{body}</div>
+                  )}
+                </li>
+              );
+            })}
           </ul>
         )}
       </div>
