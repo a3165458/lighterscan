@@ -62,3 +62,16 @@ test("REDIS_URL is preferred when both URL and HOST are set", () => {
     { url: "redis://redis.example.test:6379" },
   );
 });
+
+test("REDIS_URL can take AUTH from REDIS_PASSWORD without embedding secrets in the URL", () => {
+  assert.deepEqual(
+    resolveTcpRedisOptions({
+      REDIS_URL: "redis://redis.example.test:6379",
+      REDIS_PASSWORD: "from-env-not-git",
+    }),
+    {
+      url: "redis://redis.example.test:6379",
+      password: "from-env-not-git",
+    },
+  );
+});

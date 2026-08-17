@@ -8,9 +8,11 @@ export type SharedKv = {
   set(key: string, value: unknown, options?: { ex?: number }): Promise<void>;
 };
 
-export type TcpRedisOptions =
-  | { url: string }
-  | { socket: { host: string; port: number }; password?: string };
+export type TcpRedisOptions = {
+  url?: string;
+  socket?: { host: string; port: number };
+  password?: string;
+};
 
 type EnvMap = Record<string, string | undefined>;
 
@@ -36,13 +38,15 @@ export function resolveSharedCacheBackend(
 export function resolveTcpRedisOptions(
   env: EnvMap = process.env,
 ): TcpRedisOptions | null {
+  const password = readEnv(env, "REDIS_PASSWORD");
   const url = readEnv(env, "REDIS_URL");
-  if (url) return { url };
+  if (url) {
+    return password ? { url, password } : { url };
+  }
   const host = readEnv(env, "REDIS_HOST");
   if (!host) return null;
   const parsedPort = Number(env.REDIS_PORT ?? 6379);
   const port = Number.isFinite(parsedPort) && parsedPort > 0 ? parsedPort : 6379;
-  const password = readEnv(env, "REDIS_PASSWORD");
   return password
     ? { socket: { host, port }, password }
     : { socket: { host, port } };
@@ -50,6 +54,9 @@ export function resolveTcpRedisOptions(
 
 function createTcpKv(options: TcpRedisOptions): SharedKv {
   const client = createClient(options);
+  client.on("error", () => {
+    /* Call sites soft-fail; an unhandled error event would crash the process. */
+  });
   const ready = client.connect();
   return {
     async get<T>(key: string): Promise<T | null> {
