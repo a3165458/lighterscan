@@ -31,8 +31,10 @@ export function PageHeader({
       className={`flex flex-wrap items-end justify-between gap-x-6 gap-y-3 ${className}`}
     >
       <div className="min-w-0">
-        {eyebrow ? <p className="eyebrow">{eyebrow}</p> : null}
-        <h1 className={`page-title ${eyebrow ? "mt-1" : ""}`}>{title}</h1>
+        <div className="flex flex-wrap items-baseline gap-x-2.5 gap-y-1">
+          <h1 className="page-title">{title}</h1>
+          {eyebrow ? <span className="eyebrow">{eyebrow}</span> : null}
+        </div>
         {lede ? <p className="page-lede">{lede}</p> : null}
       </div>
       {children ? (

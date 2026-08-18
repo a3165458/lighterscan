@@ -40,9 +40,7 @@ export default async function HomePage() {
   return (
     <div className="space-y-4">
       <div className="fade-up space-y-3">
-        <PageHeader title={t(lang, "home.title")}>
-          <span className="eyebrow hidden sm:inline">{t(lang, "home.kicker")}</span>
-        </PageHeader>
+        <PageHeader eyebrow={t(lang, "home.kicker")} title={t(lang, "home.title")} />
         <StatStrip cols={4}>
           <Stat
             label={t(lang, "home.perpVolume")}
