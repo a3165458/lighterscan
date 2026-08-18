@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { AccountFunds } from "@/components/account-funds";
 import { AccountHistory } from "@/components/account-history";
 import { AccountLive } from "@/components/account-live";
 import { PositionsTable } from "@/components/positions-table";
@@ -16,6 +17,7 @@ import { t } from "@/lib/i18n";
 import { getRequestLang } from "@/lib/lang-server";
 import { estimateFillPnls, sumRealized } from "@/lib/pnl";
 import { positionLabels } from "@/lib/position-labels";
+import { emptyFundPage, getAccountFundHistory } from "@/lib/funds";
 import { getAccountTradeHistory, getAccountVolumeStats } from "@/lib/history";
 import { getAccountByIndex, getMarkets, RhError } from "@/lib/rh";
 
@@ -50,7 +52,7 @@ export default async function AccountPage({
     const marketNames = Object.fromEntries(
       markets.map((market) => [market.marketId, market.symbol]),
     );
-    const [history, volume] = await Promise.all([
+    const [history, funds, volume] = await Promise.all([
       getAccountTradeHistory(
         id,
         0,
@@ -58,6 +60,9 @@ export default async function AccountPage({
         [accountIndex],
         marketNames,
       ).catch(() => ({ fills: [], nextOffset: 0, hasMore: false })),
+      getAccountFundHistory(id, 0, 40, [accountIndex]).catch(() =>
+        emptyFundPage(),
+      ),
       getAccountVolumeStats(id, [accountIndex]).catch(() => null),
     ]);
     return (
@@ -76,6 +81,11 @@ export default async function AccountPage({
           selves={[accountIndex]}
           initial={history}
         />
+        <AccountFunds
+          account={id}
+          selves={[accountIndex]}
+          initial={funds}
+        />
       </div>
     );
   }
@@ -86,7 +96,7 @@ export default async function AccountPage({
   const exposure = open.reduce((s, p) => s + Math.abs(p.positionValue), 0);
   const markets = await marketsPromise;
   const marketNames = Object.fromEntries(markets.map((m) => [m.marketId, m.symbol]));
-  const [history, volume] = await Promise.all([
+  const [history, funds, volume] = await Promise.all([
     getAccountTradeHistory(
       String(primary.index),
       0,
@@ -94,6 +104,12 @@ export default async function AccountPage({
       [primary.index],
       marketNames,
     ).catch(() => ({ fills: [], nextOffset: 0, hasMore: false })),
+    getAccountFundHistory(
+      String(primary.index),
+      0,
+      40,
+      [primary.index],
+    ).catch(() => emptyFundPage()),
     getAccountVolumeStats(String(primary.index), [primary.index]).catch(() => null),
   ]);
   const estRealized = sumRealized(estimateFillPnls(history.fills));
@@ -175,6 +191,12 @@ export default async function AccountPage({
         account={String(primary.index)}
         selves={[primary.index]}
         initial={history}
+      />
+
+      <AccountFunds
+        account={String(primary.index)}
+        selves={[primary.index]}
+        initial={funds}
       />
 
       <section className="space-y-3">
