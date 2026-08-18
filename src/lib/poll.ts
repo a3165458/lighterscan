@@ -1,8 +1,8 @@
-/** Header ticker. Totals do not need sub-minute freshness. */
-export const TICKER_POLL_MS = 120_000;
+/** Header ticker. Totals can stay up to ~5 min stale. */
+export const TICKER_POLL_MS = 300_000;
 
 /** Shared `/api/live` poll. Direct WebSocket tape is unchanged. */
-export const LIVE_POLL_MS = 20_000;
+export const LIVE_POLL_MS = 60_000;
 
 export const TICKER_S_MAXAGE = TICKER_POLL_MS / 1_000;
 export const LIVE_S_MAXAGE = LIVE_POLL_MS / 1_000;

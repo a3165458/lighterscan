@@ -12,17 +12,17 @@ import {
 } from "./poll.ts";
 
 test("ticker and live cache windows match their poll intervals", () => {
-  assert.equal(TICKER_POLL_MS, 120_000);
-  assert.equal(LIVE_POLL_MS, 20_000);
+  assert.equal(TICKER_POLL_MS, 300_000);
+  assert.equal(LIVE_POLL_MS, 60_000);
   assert.equal(TICKER_S_MAXAGE, TICKER_POLL_MS / 1_000);
   assert.equal(LIVE_S_MAXAGE, LIVE_POLL_MS / 1_000);
   assert.equal(
     TICKER_CACHE_CONTROL,
-    "public, s-maxage=120, stale-while-revalidate=60",
+    "public, s-maxage=300, stale-while-revalidate=60",
   );
   assert.equal(
     LIVE_CACHE_CONTROL,
-    "public, s-maxage=20, stale-while-revalidate=24",
+    "public, s-maxage=60, stale-while-revalidate=24",
   );
 });
 
