@@ -19,6 +19,12 @@ test("Chinese key resolves to Chinese chrome", () => {
   assert.equal(t("zh", "search.button"), "搜索账户…");
   assert.equal(t("zh", "search.close"), "关闭");
   assert.equal(t("zh", "history.pnl"), "预估盈亏");
+  assert.equal(t("zh", "funds.title"), "出入金");
+  assert.equal(t("zh", "funds.deposit"), "入金");
+  assert.equal(t("zh", "funds.withdraw"), "出金");
+  assert.equal(t("zh", "funds.transfer"), "转账");
+  assert.equal(t("en", "funds.title"), "Deposits & withdrawals");
+  assert.equal(t("en", "funds.deposit"), "Deposit");
   assert.equal(t("zh", "account.estRealized"), "预估已实现");
   assert.equal(t("zh", "stats.volumeCurve"), "小时成交额");
   assert.equal(t("zh", "filter.all"), "全部");
