@@ -5,6 +5,7 @@ import {
   isPublicRealtimeSnapshot,
   isRealtimeSnapshotFresh,
   parseLighterTradeMessage,
+  PUBLIC_REALTIME_STALE_MS,
 } from "./realtime.ts";
 import type { Trade } from "./types.ts";
 
@@ -59,8 +60,15 @@ test("isRealtimeSnapshotFresh enforces the public stale window", () => {
   );
 
   assert.equal(isRealtimeSnapshotFresh(snapshot, 12_000), true);
-  assert.equal(isRealtimeSnapshotFresh(snapshot, 20_000), true);
-  assert.equal(isRealtimeSnapshotFresh(snapshot, 50_000), false);
+  assert.equal(isRealtimeSnapshotFresh(snapshot, 3_000 + 60_000), true);
+  assert.equal(
+    isRealtimeSnapshotFresh(snapshot, 3_000 + PUBLIC_REALTIME_STALE_MS),
+    true,
+  );
+  assert.equal(
+    isRealtimeSnapshotFresh(snapshot, 3_000 + PUBLIC_REALTIME_STALE_MS + 1),
+    false,
+  );
 });
 
 test("parseLighterTradeMessage normalizes public WebSocket frames", () => {
