@@ -14,7 +14,7 @@ test("collector publish is 10–20s and ledger writes are batched slower", () =>
   assert.ok(COLLECTOR_HEARTBEAT_MS >= COLLECTOR_PUBLISH_MS);
 });
 
-test("client poll rates stay at ticker 120s and live 20s", () => {
-  assert.equal(TICKER_POLL_MS, 120_000);
-  assert.equal(LIVE_POLL_MS, 20_000);
+test("client poll rates stay at ticker 300s and live 60s", () => {
+  assert.equal(TICKER_POLL_MS, 300_000);
+  assert.equal(LIVE_POLL_MS, 60_000);
 });
