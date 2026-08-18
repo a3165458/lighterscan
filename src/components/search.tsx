@@ -63,13 +63,14 @@ export function SearchBox({ compact = false }: { compact?: boolean }) {
     <button
       type="button"
       onClick={() => setOpen(true)}
-      className={`flex items-center gap-2 rounded-full border border-line bg-elev text-sm text-muted transition hover:border-line-strong hover:text-ink ${
-        compact ? "h-9 px-3" : "h-10 w-full max-w-md px-4"
+      className={`btn justify-start text-muted hover:text-ink ${
+        compact ? "" : "w-[30px] sm:w-52 lg:w-64"
       }`}
       aria-haspopup="dialog"
+      aria-label={t("search.button")}
     >
-      <SearchIcon size={15} />
-      <span className={compact ? "hidden sm:inline" : ""}>{t("search.button")}</span>
+      <SearchIcon size={14} className="shrink-0" />
+      <span className="hidden truncate sm:inline">{t("search.button")}</span>
       <span className="ml-auto hidden items-center gap-1 sm:flex">
         <kbd className="kbd">⌘</kbd>
         <kbd className="kbd">K</kbd>
@@ -154,8 +155,8 @@ function SearchDialog() {
         aria-labelledby={boxId}
         onMouseDown={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center gap-2 border-b border-line px-4">
-          <SearchIcon size={16} className="text-muted" />
+        <div className="flex items-center gap-2 border-b border-line px-3.5">
+          <SearchIcon size={15} className="shrink-0 text-faint" />
           <input
             ref={inputRef}
             id={boxId}
@@ -174,21 +175,24 @@ function SearchDialog() {
               }
             }}
             placeholder={t("search.placeholder")}
-            className="h-12 w-full bg-transparent text-[15px] outline-none placeholder:text-faint"
+            className="h-11 w-full bg-transparent text-[14px] outline-none placeholder:text-faint"
             autoComplete="off"
             spellCheck={false}
           />
+          <kbd className="kbd hidden shrink-0 sm:block">esc</kbd>
           <button
             type="button"
             onClick={close}
-            className="shrink-0 rounded-full px-2 py-1 text-xs text-muted hover:bg-hover hover:text-ink"
+            className="shrink-0 rounded-md px-2 py-1 text-[11.5px] text-muted hover:bg-hover hover:text-ink"
           >
             {t("search.close")}
           </button>
         </div>
-        <div className="max-h-80 overflow-y-auto p-2">
+        <div className="scroll-y max-h-80 p-1.5">
           {hits.length === 0 ? (
-            <p className="px-3 py-6 text-center text-sm text-muted">{t("search.empty")}</p>
+            <p className="px-3 py-6 text-center text-[12.5px] leading-relaxed text-muted">
+              {t("search.empty")}
+            </p>
           ) : (
             hits.map((hit, i) => (
               <button
@@ -196,17 +200,17 @@ function SearchDialog() {
                 type="button"
                 onMouseEnter={() => setActive(i)}
                 onClick={() => go(hit)}
-                className={`flex w-full items-center justify-between rounded-lg px-3 py-2.5 text-left ${
+                className={`flex w-full items-center justify-between gap-3 rounded-md px-2.5 py-2 text-left ${
                   i === active ? "bg-hover" : ""
                 }`}
               >
-                <div>
-                  <div className="text-sm font-medium">{hit.label}</div>
+                <div className="min-w-0">
+                  <div className="truncate text-[13px] font-medium">{hit.label}</div>
                   {hit.detail ? (
-                    <div className="text-xs text-muted">{hit.detail}</div>
+                    <div className="truncate text-[11.5px] text-muted">{hit.detail}</div>
                   ) : null}
                 </div>
-                <span className="text-[11px] uppercase tracking-wider text-faint">
+                <span className="tag shrink-0">
                   {t(`search.kind.${hit.kind}` as MsgKey)}
                 </span>
               </button>

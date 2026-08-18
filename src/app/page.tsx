@@ -3,14 +3,15 @@ import Link from "next/link";
 import { LeaderList } from "@/components/leader-list";
 import { LiveTape } from "@/components/live-tape";
 import { MarketTable } from "@/components/market-table";
-import { StatCard } from "@/components/stat-card";
 import { TokenIcon } from "@/components/token-icon";
+import { PageHeader, Panel, PanelHead, Stat, StatStrip } from "@/components/ui";
 import { VolumeBars } from "@/components/volume-bars";
-import { compactUsd, formatPct, pnlClass } from "@/lib/format";
-import { t } from "@/lib/i18n";
+import { compactUsd, formatPct, formatPrice, pnlClass } from "@/lib/format";
+import { t, type Lang } from "@/lib/i18n";
 import { getRequestLang } from "@/lib/lang-server";
 import { getOverview } from "@/lib/rh";
 import { publicRealtimeTransport } from "@/lib/shared-cache";
+import type { Market } from "@/lib/types";
 
 export const revalidate = 60;
 
@@ -20,10 +21,10 @@ export default async function HomePage() {
   const liquid = perps.filter((m) => m.volume24h > 10_000);
   const gainers = [...liquid]
     .sort((a, b) => b.change24h - a.change24h)
-    .slice(0, 6);
+    .slice(0, 5);
   const losers = [...liquid]
     .sort((a, b) => a.change24h - b.change24h)
-    .slice(0, 6);
+    .slice(0, 5);
   const volumeLeaders = perps;
   const tradeLeaders = [...perps].sort((a, b) => b.trades24h - a.trades24h);
   const breakdown = perps.map((m) => ({
@@ -37,89 +38,76 @@ export default async function HomePage() {
   }));
 
   return (
-    <div className="space-y-8">
-      <section className="fade-up">
-        <p className="text-xs font-medium uppercase tracking-[0.16em] text-accent">
-          {t(lang, "home.kicker")}
-        </p>
-        <h1 className="mt-1 text-3xl font-semibold tracking-tight">
-          {t(lang, "home.title")}
-        </h1>
-      </section>
-
-      <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard
-          label={t(lang, "home.perpVolume")}
-          value={compactUsd(data.totals.dailyVolume)}
-          hint={t(lang, "home.perpVolumeHint")}
-        />
-        <StatCard
-          label={t(lang, "home.trades")}
-          value={data.totals.dailyTrades.toLocaleString()}
-          hint={t(lang, "home.tradesHint")}
-        />
-        <StatCard
-          label={t(lang, "home.markets")}
-          value={String(data.totals.markets)}
-          hint={t(lang, "home.marketsHint", {
-            perp: data.totals.perpMarkets,
-            spot: data.totals.spotMarkets,
-          })}
-        />
-        <StatCard
-          label={t(lang, "home.openInterest")}
-          value={compactUsd(data.totals.openInterest)}
-          hint={t(lang, "home.openInterestHint")}
-        />
-      </section>
+    <div className="space-y-4">
+      <div className="fade-up space-y-3">
+        <PageHeader title={t(lang, "home.title")}>
+          <span className="eyebrow hidden sm:inline">{t(lang, "home.kicker")}</span>
+        </PageHeader>
+        <StatStrip cols={4}>
+          <Stat
+            label={t(lang, "home.perpVolume")}
+            value={compactUsd(data.totals.dailyVolume)}
+            hint={t(lang, "home.perpVolumeHint")}
+            size="lg"
+          />
+          <Stat
+            label={t(lang, "home.openInterest")}
+            value={compactUsd(data.totals.openInterest)}
+            hint={t(lang, "home.openInterestHint")}
+            size="lg"
+          />
+          <Stat
+            label={t(lang, "home.trades")}
+            value={data.totals.dailyTrades.toLocaleString()}
+            hint={t(lang, "home.tradesHint")}
+          />
+          <Stat
+            label={t(lang, "home.markets")}
+            value={String(data.totals.markets)}
+            hint={t(lang, "home.marketsHint", {
+              perp: data.totals.perpMarkets,
+              spot: data.totals.spotMarkets,
+            })}
+          />
+        </StatStrip>
+      </div>
 
       {data.announcements[0] ? (
-        <div className="panel px-4 py-3 text-sm">
-          <span className="mr-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-accent">
-            {t(lang, "home.notice")}
-          </span>
+        <div className="panel flex flex-wrap items-baseline gap-x-2 gap-y-1 px-3 py-2 text-[12.5px]">
+          <span className="eyebrow text-accent">{t(lang, "home.notice")}</span>
           <span className="font-medium">{data.announcements[0].title}</span>
-          <span className="text-muted"> — {data.announcements[0].content}</span>
+          <span className="text-muted">{data.announcements[0].content}</span>
         </div>
       ) : null}
 
-      <section className="grid gap-4 lg:grid-cols-2">
-        {[
-          { title: t(lang, "home.gainers"), rows: gainers },
-          { title: t(lang, "home.losers"), rows: losers },
-        ].map((group) => (
-          <div key={group.title}>
-            <div className="mb-3">
-              <h2 className="text-sm font-semibold">{group.title}</h2>
-              <p className="text-xs text-muted">{t(lang, "home.discoveryHint")}</p>
+      <div className="grid items-start gap-3 xl:grid-cols-[minmax(0,1fr)_336px]">
+        <Suspense>
+          <MarketTable markets={data.markets} />
+        </Suspense>
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-1">
+          <LiveTape
+            markets={tapeMarkets}
+            title={t(lang, "tape.title")}
+            transport={publicRealtimeTransport()}
+            max={24}
+            height="17rem"
+          />
+          <Panel>
+            <PanelHead title={t(lang, "home.discovery")} hint={t(lang, "home.discoveryHint")} />
+            <div className="grid sm:grid-cols-1">
+              <MoverGroup label={t(lang, "home.gainers")} rows={gainers} lang={lang} />
+              <MoverGroup
+                label={t(lang, "home.losers")}
+                rows={losers}
+                lang={lang}
+                divide
+              />
             </div>
-            <div className="grid gap-3 sm:grid-cols-2">
-              {group.rows.map((m) => (
-                <Link
-                  key={m.symbol}
-                  href={`/markets/${encodeURIComponent(m.symbol)}`}
-                  className="panel flex items-center gap-3 px-3 py-3 hover:bg-hover"
-                >
-                  <TokenIcon symbol={m.symbol} />
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="font-semibold">{m.symbol}</span>
-                      <span className={`text-sm tabular ${pnlClass(m.change24h)}`}>
-                        {formatPct(m.change24h)}
-                      </span>
-                    </div>
-                    <div className="text-xs text-muted">
-                      {t(lang, "home.dailyVolume", { value: compactUsd(m.volume24h) })}
-                    </div>
-                  </div>
-                </Link>
-              ))}
-            </div>
-          </div>
-        ))}
-      </section>
+          </Panel>
+        </div>
+      </div>
 
-      <div className="grid gap-4 lg:grid-cols-3">
+      <div className="grid items-start gap-3 lg:grid-cols-3">
         <LeaderList
           title={t(lang, "home.volumeLeaders")}
           hint={t(lang, "home.volumeLeadersHint")}
@@ -139,17 +127,49 @@ export default async function HomePage() {
           totalLabel={t(lang, "home.volumeMixTotal")}
         />
       </div>
+    </div>
+  );
+}
 
-      <div className="grid items-start gap-4 lg:grid-cols-[1.4fr_0.8fr]">
-        <Suspense>
-          <MarketTable markets={data.markets} />
-        </Suspense>
-        <LiveTape
-          markets={tapeMarkets}
-          title={t(lang, "tape.title")}
-          transport={publicRealtimeTransport()}
-        />
+function MoverGroup({
+  label,
+  rows,
+  lang,
+  divide = false,
+}: {
+  label: string;
+  rows: Market[];
+  lang: Lang;
+  divide?: boolean;
+}) {
+  return (
+    <div className={divide ? "border-t border-line" : ""}>
+      <div className="flex items-center gap-2 px-3 pt-2 pb-1">
+        <span className="eyebrow min-w-0 flex-1">{label}</span>
+        <span className="eyebrow w-[68px] text-right">{t(lang, "table.last")}</span>
+        <span className="eyebrow w-[58px] text-right">{t(lang, "table.change")}</span>
       </div>
+      <ul className="pb-1.5">
+        {rows.map((m) => (
+          <li key={m.symbol}>
+            <Link
+              href={`/markets/${encodeURIComponent(m.symbol)}`}
+              className="flex items-center gap-2 px-3 py-[3px] text-[12.5px] hover:bg-hover"
+            >
+              <TokenIcon symbol={m.symbol} size={17} />
+              <span className="min-w-0 flex-1 truncate font-medium">{m.symbol}</span>
+              <span className="w-[68px] shrink-0 text-right tabular text-muted">
+                {formatPrice(m.lastPrice)}
+              </span>
+              <span
+                className={`w-[58px] shrink-0 text-right tabular font-medium ${pnlClass(m.change24h)}`}
+              >
+                {formatPct(m.change24h)}
+              </span>
+            </Link>
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }

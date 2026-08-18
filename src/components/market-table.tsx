@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { ArrowDown, Search as SearchIcon, Star } from "lucide-react";
 import { useState } from "react";
 import { Sparkline } from "@/components/sparkline";
 import { TokenIcon } from "@/components/token-icon";
@@ -27,6 +28,25 @@ const SORTS = new Set<SortKey>([
   "openInterest",
   "lastPrice",
 ]);
+
+function SortTh({
+  label,
+  active,
+  onSort,
+}: {
+  label: string;
+  active: boolean;
+  onSort: () => void;
+}) {
+  return (
+    <th className="num" aria-sort={active ? "descending" : "none"}>
+      <button type="button" className="th-sort" data-active={active} onClick={onSort}>
+        {label}
+        <ArrowDown size={10} className={active ? "" : "opacity-0"} aria-hidden />
+      </button>
+    </th>
+  );
+}
 
 export function MarketTable({ markets }: { markets: Market[] }) {
   const { t } = useI18n();
@@ -74,100 +94,113 @@ export function MarketTable({ markets }: { markets: Market[] }) {
   ];
 
   return (
-    <div className="panel overflow-hidden">
-      <div className="flex flex-wrap items-center gap-3 border-b border-line px-4 py-3">
-        <div className="text-sm font-semibold">{t("table.lookup")}</div>
-        <div className="flex rounded-full bg-elev p-0.5 text-xs">
-          {tabs.map((tab) => (
-            <button
-              key={tab.id}
-              type="button"
-              onClick={() => updateQuery({ class: tab.id })}
-              className={`rounded-full px-3 py-1 ${
-                filter === tab.id ? "bg-card text-ink shadow-sm" : "text-muted"
-              }`}
-            >
-              {tab.label}
-            </button>
-          ))}
+    <div className="panel flex min-h-0 flex-col overflow-hidden">
+      <div className="panel-head">
+        <div className="flex min-w-0 items-center gap-2.5">
+          <h2 className="panel-title">{t("table.lookup")}</h2>
+          <span className="text-[11.5px] tabular text-faint">{rows.length}</span>
         </div>
-        <input
-          value={q}
-          onChange={(e) => setQ(e.target.value)}
-          placeholder={t("table.searchMarkets")}
-          className="ml-auto h-8 w-full max-w-xs rounded-full border border-line bg-elev px-3 text-sm outline-none placeholder:text-faint"
-        />
+        <div className="flex flex-1 flex-wrap items-center justify-end gap-2">
+          <div className="seg">
+            {tabs.map((tab) => (
+              <button
+                key={tab.id}
+                type="button"
+                data-on={filter === tab.id}
+                onClick={() => updateQuery({ class: tab.id })}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+          <label className="field flex w-full max-w-[15rem] items-center gap-1.5 sm:w-52">
+            <SearchIcon size={13} className="shrink-0 text-faint" />
+            <input
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              placeholder={t("table.searchMarkets")}
+              className="w-full min-w-0 bg-transparent outline-none placeholder:text-faint"
+            />
+          </label>
+        </div>
       </div>
-      <div className="overflow-x-auto lg:max-h-[520px] lg:overflow-auto">
-        <table className="w-full min-w-[720px] text-left text-sm">
-          <thead className="sticky top-0 z-10 bg-card text-[11px] uppercase tracking-[0.12em] text-faint">
-            <tr className="border-b border-line">
-              <th className="px-4 py-2.5 font-medium">{t("table.market")}</th>
-              <th className="px-3 py-2.5 font-medium">{t("table.last")}</th>
-              <th className="px-3 py-2.5 font-medium">{t("table.change")}</th>
-              <th className="px-3 py-2.5 font-medium">
-                <button type="button" onClick={() => updateQuery({ sort: "volume24h" })}>
-                  {t("table.volume")}
-                </button>
+      <div className="scroll-y min-h-0 max-h-[30rem] flex-1 overflow-x-auto sm:max-h-[34rem] xl:max-h-[41rem]">
+        <table className="tbl min-w-[700px]">
+          <thead className="sticky top-0 z-10">
+            <tr>
+              <th className="w-[38px]">
+                <span className="sr-only">{t("watch.add")}</span>
               </th>
-              <th className="px-3 py-2.5 font-medium">
-                <button type="button" onClick={() => updateQuery({ sort: "trades24h" })}>
-                  {t("table.trades")}
-                </button>
+              <th>{t("table.market")}</th>
+              {([
+                ["lastPrice", t("table.last")],
+                ["change24h", t("table.change")],
+                ["volume24h", t("table.volume")],
+                ["trades24h", t("table.trades")],
+                ["openInterest", t("table.oi")],
+              ] as const).map(([id, label]) => (
+                <SortTh
+                  key={id}
+                  label={label}
+                  active={sort === id}
+                  onSort={() => updateQuery({ sort: id })}
+                />
+              ))}
+              <th className="num w-[104px]">
+                <span className="sr-only">{t("table.change")}</span>
               </th>
-              <th className="px-3 py-2.5 font-medium">
-                <button type="button" onClick={() => updateQuery({ sort: "openInterest" })}>
-                  {t("table.oi")}
-                </button>
-              </th>
-              <th className="px-4 py-2.5 font-medium">{t("table.change")}</th>
             </tr>
           </thead>
           <tbody>
-            {rows.map((m) => (
-              <tr key={`${m.marketType}-${m.symbol}`} className="deferred-row border-b border-line last:border-0">
-                <td className="px-4 py-2.5">
-                  <Link href={`/markets/${encodeURIComponent(m.symbol)}`} className="flex items-center gap-2.5">
-                    <TokenIcon symbol={m.symbol} size={24} />
-                    <span>
-                      <span className="font-medium">{m.symbol}</span>
-                      <span className="ml-2 text-[11px] uppercase text-faint">
-                        {m.marketType}
-                      </span>
-                    </span>
+            {rows.map((m) => {
+              const on = watched.includes(m.symbol.toUpperCase());
+              return (
+                <tr key={`${m.marketType}-${m.symbol}`} className="deferred-row">
+                  <td>
                     <button
                       type="button"
-                      className="ml-1 text-[11px] text-muted hover:text-ink"
-                      onClick={(event) => {
-                        event.preventDefault();
-                        setWatched(toggleWatchlist(m.symbol));
-                      }}
+                      aria-label={on ? t("watch.remove") : t("watch.add")}
+                      aria-pressed={on}
+                      className={`grid h-6 w-6 place-items-center rounded-md hover:bg-hover ${
+                        on ? "text-warn" : "text-faint hover:text-muted"
+                      }`}
+                      onClick={() => setWatched(toggleWatchlist(m.symbol))}
                     >
-                      {watched.includes(m.symbol.toUpperCase())
-                        ? t("watch.remove")
-                        : t("watch.add")}
+                      <Star size={12} fill={on ? "currentColor" : "none"} />
                     </button>
-                  </Link>
-                </td>
-                <td className="px-3 py-2.5 tabular">{formatPrice(m.lastPrice)}</td>
-                <td className={`px-3 py-2.5 tabular ${pnlClass(m.change24h)}`}>
-                  {formatPct(m.change24h)}
-                </td>
-                <td className="px-3 py-2.5 tabular">{compactUsd(m.volume24h)}</td>
-                <td className="px-3 py-2.5 tabular text-muted">{compactNum(m.trades24h, 0)}</td>
-                <td className="px-3 py-2.5 tabular text-muted">
-                  {m.marketType === "perp"
-                    ? compactUsd(openInterestUsd(m.openInterest, m.markPrice || m.lastPrice))
-                    : "—"}
-                </td>
-                <td className="px-4 py-2.5">
-                  <Sparkline values={m.prices} />
-                </td>
-              </tr>
-            ))}
+                  </td>
+                  <td>
+                    <Link
+                      href={`/markets/${encodeURIComponent(m.symbol)}`}
+                      className="flex items-center gap-2"
+                    >
+                      <TokenIcon symbol={m.symbol} size={20} />
+                      <span className="font-medium">{m.symbol}</span>
+                      <span className="tag">{m.marketType}</span>
+                    </Link>
+                  </td>
+                  <td className="num font-medium">{formatPrice(m.lastPrice)}</td>
+                  <td className={`num ${pnlClass(m.change24h)}`}>
+                    {formatPct(m.change24h)}
+                  </td>
+                  <td className="num">{compactUsd(m.volume24h)}</td>
+                  <td className="num text-muted">{compactNum(m.trades24h, 0)}</td>
+                  <td className="num text-muted">
+                    {m.marketType === "perp"
+                      ? compactUsd(openInterestUsd(m.openInterest, m.markPrice || m.lastPrice))
+                      : "—"}
+                  </td>
+                  <td className="num">
+                    <span className="inline-flex justify-end align-middle">
+                      <Sparkline values={m.prices} width={88} height={22} />
+                    </span>
+                  </td>
+                </tr>
+              );
+            })}
             {rows.length === 0 ? (
               <tr>
-                <td colSpan={7} className="px-4 py-10 text-center text-sm text-muted">
+                <td colSpan={8} className="empty">
                   {t("table.empty")}
                 </td>
               </tr>

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { PageHeader } from "@/components/ui";
 import { canLinkAddress, compactNum, publicAddressLabel, shortAddress } from "@/lib/format";
 import { t } from "@/lib/i18n";
 import { getRequestLang } from "@/lib/lang-server";
@@ -28,63 +29,49 @@ export default async function LeaderboardPage({
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h1 className="text-3xl font-semibold tracking-tight">{t(lang, "lb.title")}</h1>
-          <p className="mt-2 max-w-2xl text-sm text-muted">{t(lang, "lb.subtitle")}</p>
-        </div>
-        <div className="flex rounded-full bg-elev p-0.5 text-sm">
-          <Link
-            href="/leaderboard?type=all"
-            className={`rounded-full px-3 py-1 ${type === "all" ? "bg-card" : "text-muted"}`}
-          >
+    <div className="space-y-3.5">
+      <PageHeader title={t(lang, "lb.title")} lede={t(lang, "lb.subtitle")}>
+        <div className="seg">
+          <Link href="/leaderboard?type=all" data-on={type === "all"}>
             {t(lang, "lb.allTime")}
           </Link>
-          <Link
-            href="/leaderboard?type=weekly"
-            className={`rounded-full px-3 py-1 ${type === "weekly" ? "bg-card" : "text-muted"}`}
-          >
+          <Link href="/leaderboard?type=weekly" data-on={type === "weekly"}>
             {t(lang, "lb.weekly")}
           </Link>
         </div>
-      </div>
+      </PageHeader>
 
-      <div className="panel overflow-hidden">
+      <div className="panel max-w-4xl overflow-hidden">
         {error ? (
-          <p className="px-4 py-10 text-center text-sm text-muted">{error}</p>
+          <p className="empty">{error}</p>
         ) : entries.length === 0 ? (
-          <p className="px-4 py-10 text-center text-sm text-muted">
-            {t(lang, "lb.empty")}
-          </p>
+          <p className="empty">{t(lang, "lb.empty")}</p>
         ) : (
-          <table className="w-full text-left text-sm">
-            <thead className="text-[11px] uppercase tracking-[0.12em] text-faint">
-              <tr className="border-b border-line">
-                <th className="px-4 py-2.5 font-medium">{t(lang, "lb.rank")}</th>
-                <th className="px-3 py-2.5 font-medium">{t(lang, "lb.address")}</th>
-                <th className="px-4 py-2.5 font-medium">{t(lang, "lb.points")}</th>
+          <table className="tbl">
+            <thead>
+              <tr>
+                <th className="num w-14">{t(lang, "lb.rank")}</th>
+                <th>{t(lang, "lb.address")}</th>
+                <th className="num">{t(lang, "lb.points")}</th>
               </tr>
             </thead>
             <tbody>
               {entries.map((row) => (
-                <tr key={`${row.rank}-${row.l1Address}`} className="border-b border-line last:border-0">
-                  <td className="px-4 py-2.5 tabular text-muted">
-                    {String(row.rank).padStart(2, "0")}
-                  </td>
-                  <td className="px-3 py-2.5 font-mono">
+                <tr key={`${row.rank}-${row.l1Address}`}>
+                  <td className="num text-faint">{row.rank}</td>
+                  <td className="font-mono">
                     {canLinkAddress(row.l1Address) ? (
-                      <Link href={`/address/${row.l1Address}`} className="hover:text-accent">
+                      <Link href={`/address/${row.l1Address}`} className="link-accent">
                         <span className="hidden sm:inline">{row.l1Address}</span>
                         <span className="sm:hidden">{shortAddress(row.l1Address, 6)}</span>
                       </Link>
                     ) : (
-                      <span className="text-muted">{publicAddressLabel(row.l1Address)}</span>
+                      <span className="text-faint">
+                        {publicAddressLabel(row.l1Address)}
+                      </span>
                     )}
                   </td>
-                  <td className="px-4 py-2.5 tabular font-medium">
-                    {compactNum(row.points, 2)}
-                  </td>
+                  <td className="num font-medium">{compactNum(row.points, 2)}</td>
                 </tr>
               ))}
             </tbody>

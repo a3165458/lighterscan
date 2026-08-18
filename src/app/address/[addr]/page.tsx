@@ -3,7 +3,15 @@ import { notFound } from "next/navigation";
 import { AccountFunds } from "@/components/account-funds";
 import { AccountHistory } from "@/components/account-history";
 import { PositionsTable } from "@/components/positions-table";
-import { StatCard } from "@/components/stat-card";
+import {
+  Crumbs,
+  PageHeader,
+  Panel,
+  PanelHead,
+  Stat,
+  StatStrip,
+  toneOf,
+} from "@/components/ui";
 import {
   canLinkAddress,
   compactUsd,
@@ -86,107 +94,124 @@ export default async function AddressPage({
   );
 
   return (
-    <div className="space-y-6">
-      <div className="text-xs text-muted">
-        {t(lang, "address.crumb")}
-        <span className="mx-1.5 text-faint">/</span>
-        {shortAddress(addr, 6)}
-      </div>
-      <div>
-        <h1 className="break-all font-mono text-2xl font-semibold tracking-tight sm:text-3xl">
-          {addr}
-        </h1>
-        <p className="mt-2 text-sm text-muted">
+    <div className="space-y-3.5">
+      <Crumbs
+        items={[
+          { label: t(lang, "address.crumb") },
+          { label: shortAddress(addr, 6) },
+        ]}
+      />
+
+      <PageHeader
+        title={<span className="break-all font-mono text-[17px] sm:text-[19px]">{addr}</span>}
+      >
+        <span className="badge">
           {t(
             lang,
             bundle.accounts.length === 1 ? "address.linkedOne" : "address.linkedMany",
             { count: bundle.accounts.length },
           )}
-        </p>
-      </div>
+        </span>
+      </PageHeader>
 
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
-        <StatCard
+      <StatStrip cols={5}>
+        <Stat
           label={t(lang, "address.accounts")}
           value={String(bundle.accounts.length)}
           hint={t(lang, "address.accountsHint")}
         />
-        <StatCard label={t(lang, "account.collateral")} value={compactUsd(collateral)} />
-        <StatCard label={t(lang, "account.exposure")} value={compactUsd(exposure)} />
-        <StatCard
+        <Stat
+          label={t(lang, "account.collateral")}
+          value={compactUsd(collateral)}
+          size="lg"
+        />
+        <Stat label={t(lang, "account.exposure")} value={compactUsd(exposure)} />
+        <Stat
           label={t(lang, "account.upnl")}
           value={signedUsd(uPnl)}
           hint={t(lang, "account.realized", { value: signedUsd(rPnl) })}
-          tone={uPnl > 0 ? "up" : uPnl < 0 ? "down" : "default"}
+          tone={toneOf(uPnl)}
         />
-        <StatCard
+        <Stat
           label={t(lang, "account.estRealized")}
           value={signedUsd(estRealized)}
-          tone={estRealized > 0 ? "up" : estRealized < 0 ? "down" : "default"}
+          tone={toneOf(estRealized)}
         />
+      </StatStrip>
+
+      <div className="grid items-start gap-3.5 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)]">
+        <Panel className="overflow-hidden">
+          <PanelHead title={t(lang, "address.accounts")} />
+          <table className="tbl">
+            <thead>
+              <tr>
+                <th>{t(lang, "address.index")}</th>
+                <th>{t(lang, "address.status")}</th>
+                <th className="num">{t(lang, "account.collateral")}</th>
+                <th className="num">{t(lang, "address.positions")}</th>
+                <th className="num">{t(lang, "pos.upnl")}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {bundle.accounts.map((a) => {
+                const open = a.positions.filter((p) => p.position !== 0);
+                const pnl = open.reduce((s, p) => s + p.unrealizedPnl, 0);
+                return (
+                  <tr key={a.index}>
+                    <td>
+                      <Link
+                        href={`/account/${a.index}`}
+                        className="font-mono font-medium link-accent"
+                      >
+                        #{a.index}
+                      </Link>
+                    </td>
+                    <td className="text-muted">
+                      {a.status === 1
+                        ? t(lang, "account.active")
+                        : t(lang, "account.inactive")}
+                    </td>
+                    <td className="num">{compactUsd(a.collateral)}</td>
+                    <td className="num text-muted">{open.length}</td>
+                    <td className={`num ${pnlClass(pnl)}`}>{compactUsd(pnl)}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </Panel>
+
+        <section className="space-y-2">
+          <h2 className="panel-title">{t(lang, "account.openPositions")}</h2>
+          <PositionsTable
+            positions={allPositions}
+            empty={t(lang, "pos.emptyAddress")}
+            labels={positionLabels(lang)}
+          />
+        </section>
       </div>
 
-      <section className="panel overflow-hidden">
-        <div className="border-b border-line px-4 py-3 text-sm font-semibold">
-          {t(lang, "address.accounts")}
-        </div>
-        <table className="w-full text-left text-sm">
-          <thead className="text-[11px] uppercase tracking-[0.12em] text-faint">
-            <tr className="border-b border-line">
-              <th className="px-4 py-2 font-medium">{t(lang, "address.index")}</th>
-              <th className="px-3 py-2 font-medium">{t(lang, "address.status")}</th>
-              <th className="px-3 py-2 font-medium">{t(lang, "account.collateral")}</th>
-              <th className="px-3 py-2 font-medium">{t(lang, "address.positions")}</th>
-              <th className="px-4 py-2 font-medium">{t(lang, "pos.upnl")}</th>
-            </tr>
-          </thead>
-          <tbody>
-            {bundle.accounts.map((a) => {
-              const open = a.positions.filter((p) => p.position !== 0);
-              const pnl = open.reduce((s, p) => s + p.unrealizedPnl, 0);
-              return (
-                <tr key={a.index} className="border-b border-line last:border-0">
-                  <td className="px-4 py-2">
-                    <Link href={`/account/${a.index}`} className="font-medium hover:text-accent">
-                      {a.index}
-                    </Link>
-                  </td>
-                  <td className="px-3 py-2 text-muted">
-                    {a.status === 1 ? t(lang, "account.active") : t(lang, "account.inactive")}
-                  </td>
-                  <td className="px-3 py-2 tabular">{compactUsd(a.collateral)}</td>
-                  <td className="px-3 py-2 tabular">{open.length}</td>
-                  <td className={`px-4 py-2 tabular ${pnlClass(pnl)}`}>{compactUsd(pnl)}</td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </section>
-
       {lookupIds.map((id, i) => (
-        <div key={String(id)} className="space-y-6">
+        <div key={String(id)} className="space-y-3.5">
+          {lookupIds.length > 1 ? (
+            <p className="eyebrow pt-1">
+              {t(lang, "account.hash", { id: String(id) })}
+            </p>
+          ) : null}
           <AccountHistory
             account={String(id)}
             selves={[id]}
             initial={historyPages[i]}
+            anchorId={i === 0 ? "history" : undefined}
           />
           <AccountFunds
             account={String(id)}
             selves={[id]}
             initial={fundPages[i]}
+            anchorId={i === 0 ? "funds" : undefined}
           />
         </div>
       ))}
-
-      <section className="space-y-3">
-        <h2 className="text-sm font-semibold">{t(lang, "account.openPositions")}</h2>
-        <PositionsTable
-          positions={allPositions}
-          empty={t(lang, "pos.emptyAddress")}
-          labels={positionLabels(lang)}
-        />
-      </section>
     </div>
   );
 }

@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { StatCard } from "@/components/stat-card";
 import { TokenIcon } from "@/components/token-icon";
+import { Crumbs, Stat, StatStrip } from "@/components/ui";
 import { compactUsd, formatPrice, formatSize, formatTime } from "@/lib/format";
 import { officialLogUrl, getLogByHash } from "@/lib/history";
 import { t } from "@/lib/i18n";
@@ -40,113 +40,121 @@ export default async function LogPage({
   const official = officialLogUrl(hash, lang);
 
   return (
-    <div className="space-y-6">
-      <div className="text-xs text-muted">
-        <Link href="/" className="hover:text-ink">
-          {t(lang, "nav.markets")}
-        </Link>
-        <span className="mx-1.5 text-faint">/</span>
-        {t(lang, "log.title")}
-      </div>
+    <div className="max-w-4xl space-y-3.5">
+      <Crumbs
+        items={[
+          { label: t(lang, "nav.markets"), href: "/" },
+          { label: t(lang, "log.title") },
+        ]}
+      />
 
-      <div>
-        <h1 className="text-3xl font-semibold tracking-tight">{t(lang, "log.title")}</h1>
-        <p className="mt-2 break-all font-mono text-sm text-muted">{hash}</p>
+      <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-2">
+        <div className="min-w-0">
+          <h1 className="page-title">{t(lang, "log.title")}</h1>
+          <p className="mt-1 break-all font-mono text-[11.5px] text-faint">{hash}</p>
+        </div>
+        <a href={official} target="_blank" rel="noreferrer" className="btn">
+          {t(lang, "log.official")}
+        </a>
       </div>
 
       {trade ? (
         <>
-          <div className="flex flex-wrap items-end gap-3">
-            <TokenIcon symbol={trade.symbol || "?"} size={36} />
-            <div>
-              <div className="text-2xl font-semibold">
-                {trade.symbol || `#${trade.marketId}`}
-              </div>
-              <div className="text-sm text-muted">
-                {trade.kind} · {trade.txType}
+          <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-3">
+            <div className="flex items-center gap-3">
+              <TokenIcon symbol={trade.symbol || "?"} size={30} />
+              <div>
+                <div className="text-[17px] font-semibold">
+                  {trade.symbol || `#${trade.marketId}`}
+                </div>
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <span className="tag">{trade.kind}</span>
+                  <span className="tag">{trade.txType}</span>
+                </div>
               </div>
             </div>
-            <div className="ml-auto text-right">
-              <div className="text-3xl font-semibold tabular">{formatPrice(trade.price)}</div>
-              <div className="text-sm text-muted">
+            <div className="text-right">
+              <div className="hero-num">{formatPrice(trade.price)}</div>
+              <div className="text-[11.5px] tabular text-muted">
                 {formatSize(trade.size)} · {compactUsd(trade.usdAmount)}
               </div>
             </div>
           </div>
 
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            <StatCard
+          <StatStrip cols={4}>
+            <Stat
               label={t(lang, "log.market")}
               value={trade.symbol || String(trade.marketId)}
               hint={`market ${trade.marketId}`}
             />
-            <StatCard
+            <Stat
               label={t(lang, "log.price")}
               value={formatPrice(trade.price)}
-              hint={t(lang, "log.takerSide") + " · " + (trade.isTakerAsk ? t(lang, "log.ask") : t(lang, "log.bid"))}
+              hint={`${t(lang, "log.takerSide")} · ${trade.isTakerAsk ? t(lang, "log.ask") : t(lang, "log.bid")}`}
             />
-            <StatCard
+            <Stat
               label={t(lang, "log.size")}
               value={formatSize(trade.size)}
-              hint={t(lang, "log.notional") + " " + compactUsd(trade.usdAmount)}
+              hint={`${t(lang, "log.notional")} ${compactUsd(trade.usdAmount)}`}
             />
-            <StatCard
+            <Stat
               label={t(lang, "log.time")}
               value={formatTime(trade.timestamp)}
               hint={trade.status || "—"}
             />
-          </div>
+          </StatStrip>
 
           <div className="panel overflow-hidden">
-            <table className="w-full text-left text-sm">
+            <table className="tbl tbl-quiet">
               <tbody>
                 <Row label={t(lang, "log.taker")}>
-                  <Link href={`/account/${trade.taker}`} className="hover:text-accent">
-                    {trade.taker}
+                  <Link href={`/account/${trade.taker}`} className="font-mono link-accent">
+                    #{trade.taker}
                   </Link>
-                  {trade.isTakerAsk ? ` · ${t(lang, "tape.sell")}` : ` · ${t(lang, "tape.buy")}`}
+                  <span className={trade.isTakerAsk ? "text-down" : "text-up"}>
+                    {trade.isTakerAsk
+                      ? ` · ${t(lang, "tape.sell")}`
+                      : ` · ${t(lang, "tape.buy")}`}
+                  </span>
                 </Row>
                 <Row label={t(lang, "log.maker")}>
-                  <Link href={`/account/${trade.maker}`} className="hover:text-accent">
-                    {trade.maker}
+                  <Link href={`/account/${trade.maker}`} className="font-mono link-accent">
+                    #{trade.maker}
                   </Link>
                 </Row>
-                <Row label={t(lang, "log.block")}>{trade.blockNumber || "—"}</Row>
-                <Row label={t(lang, "log.batch")}>{trade.batchNumber || "—"}</Row>
+                <Row label={t(lang, "log.block")}>
+                  <span className="tabular">{trade.blockNumber || "—"}</span>
+                </Row>
+                <Row label={t(lang, "log.batch")}>
+                  <span className="tabular">{trade.batchNumber || "—"}</span>
+                </Row>
                 <Row label={t(lang, "log.type")}>{trade.txType}</Row>
                 <Row label={t(lang, "log.hash")}>
-                  <span className="break-all font-mono text-xs">{trade.hash}</span>
+                  <span className="wrap break-all font-mono text-[11px] text-muted">
+                    {trade.hash}
+                  </span>
                 </Row>
               </tbody>
             </table>
           </div>
         </>
       ) : (
-        <div className="panel px-4 py-6 text-sm text-muted">
+        <div className="panel p-3.5 text-[12.5px] text-muted">
           <p>{t(lang, "log.missing")}</p>
-          <pre className="mt-3 overflow-x-auto text-xs">{JSON.stringify(raw, null, 2)}</pre>
+          <pre className="scroll-y mt-3 max-h-80 overflow-x-auto text-[11px] leading-relaxed">
+            {JSON.stringify(raw, null, 2)}
+          </pre>
         </div>
       )}
-
-      <a
-        href={official}
-        target="_blank"
-        rel="noreferrer"
-        className="inline-flex rounded-full border border-line bg-elev px-3 py-1.5 text-sm hover:bg-hover"
-      >
-        {t(lang, "log.official")}
-      </a>
     </div>
   );
 }
 
 function Row({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <tr className="border-b border-line last:border-0">
-      <th className="w-36 px-4 py-2 text-left text-[11px] font-medium uppercase tracking-[0.12em] text-faint">
-        {label}
-      </th>
-      <td className="px-4 py-2">{children}</td>
+    <tr>
+      <th className="w-32 text-left">{label}</th>
+      <td className="wrap">{children}</td>
     </tr>
   );
 }
