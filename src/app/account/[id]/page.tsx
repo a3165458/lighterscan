@@ -48,9 +48,9 @@ function SectionNav({
   items: { href: string; key: MsgKey }[];
 }) {
   return (
-    <nav className="section-nav -mx-1">
+    <nav className="section-nav gap-1.5 pt-0.5">
       {items.map((item) => (
-        <a key={item.href} href={item.href} className="chip mx-1">
+        <a key={item.href} href={item.href} className="btn btn-xs text-muted">
           {t(lang, item.key)}
         </a>
       ))}

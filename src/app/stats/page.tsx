@@ -92,7 +92,7 @@ export default async function StatsPage({
         />
       </StatStrip>
       <div className="grid items-start gap-3.5 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
-        <Panel className="overflow-hidden">
+        <Panel className="flex h-[26rem] flex-col overflow-hidden">
           <PanelHead
             title={t(lang, "stats.volumeCurve")}
             hint={
@@ -108,12 +108,12 @@ export default async function StatsPage({
                 : t(lang, "stats.empty")}
             </p>
           ) : (
-            <div className="flex h-[19rem] items-end gap-[3px] px-3 py-3">
+            <div className="flex min-h-0 flex-1 items-end gap-[3px] px-3 pt-4 pb-3.5">
               {curve.map((row) => (
                 <div
                   key={row.t}
-                  className="flex-1 rounded-[2px] bg-accent/60 hover:bg-accent"
-                  style={{ height: `${Math.max(4, (row.volume / max) * 100)}%` }}
+                  className="flex-1 rounded-t-[2px] bg-accent/30 hover:bg-accent/60"
+                  style={{ height: `${Math.max(3, (row.volume / max) * 100)}%` }}
                   title={`${formatTime(row.t)} · ${compactUsd(row.volume)}`}
                 />
               ))}

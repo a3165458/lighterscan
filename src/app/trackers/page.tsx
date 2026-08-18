@@ -89,11 +89,10 @@ export default async function TrackersPage({
   return (
     <div className="space-y-3.5">
       <PageHeader
+        eyebrow={t(lang, "tracker.kicker")}
         title={t(lang, "tracker.title")}
         lede={t(lang, "tracker.subtitle")}
-      >
-        <span className="eyebrow hidden sm:inline">{t(lang, "tracker.kicker")}</span>
-      </PageHeader>
+      />
       <MarketFilter markets={choices} selected={selected?.symbol} />
       <TrackerBoard
         sample={sample}

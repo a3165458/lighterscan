@@ -181,7 +181,9 @@ function TrackerWhaleRow({
             onClick={onToggle}
             aria-expanded={open}
             aria-label={t("tracker.fundsOpen")}
-            className="btn btn-xs"
+            className={`inline-flex h-6 items-center gap-1 rounded-md px-1.5 text-[11.5px] hover:bg-hover hover:text-ink ${
+              open ? "bg-hover text-ink" : "text-faint"
+            }`}
           >
             {open ? t("tracker.fundsClose") : t("tracker.funds")}
             <ChevronDown
@@ -194,8 +196,10 @@ function TrackerWhaleRow({
       </tr>
       {open ? (
         <tr>
-          <td colSpan={10} className="pad-y bg-elev/50">
-            <TrackerFundPreview accountId={row.accountId} />
+          <td colSpan={10} className="pad-y bg-elev">
+            <div className="border-l-2 border-accent/40 pl-3">
+              <TrackerFundPreview accountId={row.accountId} />
+            </div>
           </td>
         </tr>
       ) : null}
