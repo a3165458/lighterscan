@@ -158,7 +158,7 @@ export default async function AccountPage({
     <div className="space-y-3.5">
       <Crumbs
         items={[
-          { label: t(lang, "account.crumb"), href: "/leaderboard" },
+          { label: t(lang, "account.crumb") },
           { label: t(lang, "account.hash", { id: primary.index }) },
         ]}
       />

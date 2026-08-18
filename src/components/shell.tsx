@@ -101,10 +101,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
       { href: "/liquidations", label: t("nav.liquidations") },
       { href: "/positions", label: t("nav.positions") },
     ],
-    [
-      { href: "/trackers", label: t("nav.trackers") },
-      { href: "/leaderboard", label: t("nav.leaderboard") },
-    ],
+    [{ href: "/trackers", label: t("nav.trackers") }],
   ];
   const flat = groups.flat();
 
