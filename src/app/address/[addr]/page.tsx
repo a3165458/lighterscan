@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { AccountFunds } from "@/components/account-funds";
 import { AccountHistory } from "@/components/account-history";
 import { PositionsTable } from "@/components/positions-table";
 import { StatCard } from "@/components/stat-card";
@@ -15,6 +16,7 @@ import { t } from "@/lib/i18n";
 import { getRequestLang } from "@/lib/lang-server";
 import { estimateFillPnls, sumRealized } from "@/lib/pnl";
 import { positionLabels } from "@/lib/position-labels";
+import { emptyFundPage, getAccountFundHistory } from "@/lib/funds";
 import { explorerLookupId, getAccountTradeHistory } from "@/lib/history";
 import { getAccountsByAddress, getMarkets, RhError } from "@/lib/rh";
 
@@ -53,15 +55,22 @@ export default async function AddressPage({
   const lookupIds = selves.length
     ? selves
     : [explorerLookupId(addr, [], checksum)];
-  const historyPages = await Promise.all(
-    lookupIds.map((id) =>
-      getAccountTradeHistory(String(id), 0, 40, [id], marketNames).catch(() => ({
-        fills: [],
-        nextOffset: 0,
-        hasMore: false,
-      })),
+  const [historyPages, fundPages] = await Promise.all([
+    Promise.all(
+      lookupIds.map((id) =>
+        getAccountTradeHistory(String(id), 0, 40, [id], marketNames).catch(() => ({
+          fills: [],
+          nextOffset: 0,
+          hasMore: false,
+        })),
+      ),
     ),
-  );
+    Promise.all(
+      lookupIds.map((id) =>
+        getAccountFundHistory(String(id), 0, 40, [id]).catch(() => emptyFundPage()),
+      ),
+    ),
+  ]);
   const allPositions = bundle.accounts.flatMap((a) =>
     a.positions
       .filter((p) => p.position !== 0)
@@ -156,12 +165,18 @@ export default async function AddressPage({
       </section>
 
       {lookupIds.map((id, i) => (
-        <AccountHistory
-          key={String(id)}
-          account={String(id)}
-          selves={[id]}
-          initial={historyPages[i]}
-        />
+        <div key={String(id)} className="space-y-6">
+          <AccountHistory
+            account={String(id)}
+            selves={[id]}
+            initial={historyPages[i]}
+          />
+          <AccountFunds
+            account={String(id)}
+            selves={[id]}
+            initial={fundPages[i]}
+          />
+        </div>
       ))}
 
       <section className="space-y-3">
