@@ -1,21 +1,43 @@
+import Link from "next/link";
 import { formatPrice } from "@/lib/format";
 import type { Candle } from "@/lib/types";
+
+type Timeframe = { label: string; href: string; active: boolean };
+
+function TimeframeSeg({ timeframes }: { timeframes: Timeframe[] }) {
+  if (!timeframes.length) return null;
+  return (
+    <div className="seg">
+      {timeframes.map((frame) => (
+        <Link key={frame.href} href={frame.href} data-on={frame.active} scroll={false}>
+          {frame.label}
+        </Link>
+      ))}
+    </div>
+  );
+}
 
 export function PriceChart({
   candles,
   emptyLabel,
   heading,
   rangeLabel,
+  timeframes = [],
 }: {
   candles: Candle[];
   emptyLabel: string;
   heading: string;
   rangeLabel: string;
+  timeframes?: Timeframe[];
 }) {
   if (candles.length < 2) {
     return (
-      <div className="panel grid h-64 place-items-center text-sm text-muted">
-        {emptyLabel}
+      <div className="panel overflow-hidden">
+        <div className="panel-head">
+          <h2 className="panel-title">{heading}</h2>
+          <TimeframeSeg timeframes={timeframes} />
+        </div>
+        <p className="empty">{emptyLabel}</p>
       </div>
     );
   }
@@ -39,20 +61,21 @@ export function PriceChart({
   const color = up ? "var(--up)" : "var(--down)";
 
   return (
-    <div className="panel overflow-hidden p-4">
-      <div className="mb-3 flex items-end justify-between">
-        <div>
-          <div className="text-[11px] uppercase tracking-[0.12em] text-faint">
-            {heading}
-          </div>
-          <div className="text-lg font-semibold tabular">{formatPrice(last.c)}</div>
+    <div className="panel overflow-hidden">
+      <div className="panel-head">
+        <div className="min-w-0">
+          <h2 className="panel-title">{heading}</h2>
+          {rangeLabel ? <p className="panel-sub tabular">{rangeLabel}</p> : null}
         </div>
-        <div className="text-xs text-muted">{rangeLabel}</div>
+        <div className="flex items-center gap-3">
+          <span className="text-[15px] font-semibold tabular">{formatPrice(last.c)}</span>
+          <TimeframeSeg timeframes={timeframes} />
+        </div>
       </div>
-      <svg viewBox={`0 0 ${w} ${h}`} className="h-56 w-full">
+      <svg viewBox={`0 0 ${w} ${h}`} className="h-52 w-full sm:h-60">
         <defs>
           <linearGradient id="fill" x1="0" x2="0" y1="0" y2="1">
-            <stop offset="0%" stopColor={color} stopOpacity="0.28" />
+            <stop offset="0%" stopColor={color} stopOpacity="0.26" />
             <stop offset="100%" stopColor={color} stopOpacity="0" />
           </linearGradient>
         </defs>
@@ -60,7 +83,7 @@ export function PriceChart({
         <polyline
           fill="none"
           stroke={color}
-          strokeWidth="2"
+          strokeWidth="1.6"
           strokeLinejoin="round"
           strokeLinecap="round"
           points={line}

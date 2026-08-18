@@ -1,10 +1,9 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import { LiveTape } from "@/components/live-tape";
 import { OrderBookView } from "@/components/order-book";
 import { PriceChart } from "@/components/price-chart";
-import { StatCard } from "@/components/stat-card";
 import { TokenIcon } from "@/components/token-icon";
+import { Crumbs, Stat, StatStrip } from "@/components/ui";
 import {
   compactNum,
   compactUsd,
@@ -66,56 +65,61 @@ export default async function MarketPage({
   const seeded = trades.map((row) => ({ ...row, symbol: market.symbol }));
   const chartCandles = mergeHistoricalSeries(candles, market.prices);
 
+  const funding = pickMarketFunding(fundingRows, market.marketId);
+
   return (
-    <div className="space-y-6">
-      <div>
-        <div className="text-xs text-muted">
-          <Link href="/" className="hover:text-ink">
-            {t(lang, "market.crumb")}
-          </Link>
-          <span className="mx-1.5 text-faint">/</span>
-          {market.symbol}
-        </div>
-        <div className="mt-3 flex flex-wrap items-end gap-4">
-          <TokenIcon symbol={market.symbol} size={40} />
-          <div>
-            <h1 className="text-3xl font-semibold tracking-tight">{market.symbol}</h1>
-            <p className="text-sm text-muted">
-              {t(lang, market.marketType === "spot" ? "common.spot" : "common.perp")} ·{" "}
-              {t(
-                lang,
-                market.assetClass === "spot"
-                  ? "common.spot"
-                  : market.assetClass === "crypto"
-                    ? "common.crypto"
-                    : "common.rwa",
-              )}{" "}
-              · {market.marketId}
+    <div className="space-y-3.5">
+      <Crumbs
+        items={[
+          { label: t(lang, "market.crumb"), href: "/" },
+          { label: market.symbol },
+        ]}
+      />
+
+      <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-3">
+        <div className="flex items-center gap-3">
+          <TokenIcon symbol={market.symbol} size={34} />
+          <div className="min-w-0">
+            <h1 className="page-title">{market.symbol}</h1>
+            <p className="mt-0.5 flex flex-wrap items-center gap-1.5 text-[11.5px] text-faint">
+              <span className="tag">
+                {t(lang, market.marketType === "spot" ? "common.spot" : "common.perp")}
+              </span>
+              <span className="tag">
+                {t(
+                  lang,
+                  market.assetClass === "spot"
+                    ? "common.spot"
+                    : market.assetClass === "crypto"
+                      ? "common.crypto"
+                      : "common.rwa",
+                )}
+              </span>
+              <span className="tabular">#{market.marketId}</span>
             </p>
           </div>
-          <div className="ml-auto text-right">
-            <div className="text-3xl font-semibold tabular">
-              {formatPrice(market.lastPrice)}
-            </div>
-            <div className={`text-sm tabular ${pnlClass(market.change24h)}`}>
-              {formatPct(market.change24h)} 24h
-            </div>
-          </div>
+        </div>
+        <div className="flex items-baseline gap-3">
+          <span className="hero-num">{formatPrice(market.lastPrice)}</span>
+          <span className={`text-[13px] tabular font-medium ${pnlClass(market.change24h)}`}>
+            {formatPct(market.change24h)}
+            <span className="ml-1 text-faint">24h</span>
+          </span>
         </div>
       </div>
 
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard
+      <StatStrip cols={4}>
+        <Stat
           label={t(lang, "market.volume")}
           value={compactUsd(market.volume24h)}
           hint={t(lang, "market.volumeHint")}
         />
-        <StatCard
+        <Stat
           label={t(lang, "market.trades")}
           value={compactNum(market.trades24h, 0)}
           hint={`${formatPrice(market.low24h)} – ${formatPrice(market.high24h)}`}
         />
-        <StatCard
+        <Stat
           label={t(lang, "market.oi")}
           value={
             market.marketType === "perp"
@@ -134,28 +138,12 @@ export default async function MarketPage({
               : t(lang, "market.spot")
           }
         />
-        <StatCard
+        <Stat
           label={t(lang, "market.funding")}
-          value={
-            pickMarketFunding(fundingRows, market.marketId)
-              ? `${((pickMarketFunding(fundingRows, market.marketId)?.lighter ?? 0) * 100).toFixed(4)}%`
-              : "—"
-          }
+          value={funding ? `${((funding.lighter ?? 0) * 100).toFixed(4)}%` : "—"}
           hint={`${t(lang, "market.spread")} ${formatPrice((market.markPrice || market.lastPrice) - (market.indexPrice || market.lastPrice))}`}
         />
-      </div>
-
-      <div className="flex gap-2 text-xs">
-        {(["1h", "4h", "1d"] as const).map((value) => (
-          <Link
-            key={value}
-            href={`/markets/${encodeURIComponent(market.symbol)}?tf=${value}`}
-            className={`rounded-full px-3 py-1 ${tf === value ? "bg-hover text-ink" : "text-muted"}`}
-          >
-            {t(lang, value === "1h" ? "chart.1h" : value === "4h" ? "chart.4h" : "chart.1d")}
-          </Link>
-        ))}
-      </div>
+      </StatStrip>
 
       <PriceChart
         candles={chartCandles}
@@ -170,9 +158,14 @@ export default async function MarketPage({
               })
             : ""
         }
+        timeframes={(["1h", "4h", "1d"] as const).map((value) => ({
+          label: t(lang, value === "1h" ? "chart.1h" : value === "4h" ? "chart.4h" : "chart.1d"),
+          href: `/markets/${encodeURIComponent(market.symbol)}?tf=${value}`,
+          active: tf === value,
+        }))}
       />
 
-      <div className="grid gap-4 lg:grid-cols-2">
+      <div className="grid items-start gap-3.5 lg:grid-cols-2">
         <OrderBookView
           book={book}
           title={t(lang, "book.title")}
@@ -180,15 +173,14 @@ export default async function MarketPage({
           bidsLabel={t(lang, "book.bids")}
           asksLabel={t(lang, "book.asks")}
         />
-        <div className="space-y-4">
-          <LiveTape
-            markets={[{ marketId: market.marketId, symbol: market.symbol }]}
-            title={t(lang, "tape.marketTitle")}
-            max={30}
-            seed={seeded}
-            transport={publicRealtimeTransport()}
-          />
-        </div>
+        <LiveTape
+          markets={[{ marketId: market.marketId, symbol: market.symbol }]}
+          title={t(lang, "tape.marketTitle")}
+          max={30}
+          seed={seeded}
+          transport={publicRealtimeTransport()}
+          height="21rem"
+        />
       </div>
     </div>
   );

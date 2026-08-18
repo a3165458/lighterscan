@@ -1,5 +1,6 @@
 import { LiveTape } from "@/components/live-tape";
 import { MarketFilter } from "@/components/market-filter";
+import { PageHeader } from "@/components/ui";
 import { t } from "@/lib/i18n";
 import { getRequestLang } from "@/lib/lang-server";
 import { perpChoices, resolveMarketChoice } from "@/lib/market-filter";
@@ -29,18 +30,17 @@ export default async function TapePage({
     : choices.slice(0, 40);
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-semibold tracking-tight">{t(lang, "tape.pageTitle")}</h1>
-      </div>
+    <div className="space-y-3.5">
+      <PageHeader title={t(lang, "tape.pageTitle")} lede={t(lang, "tape.hint")} />
       <MarketFilter markets={choices} selected={selected?.symbol} />
       <LiveTape
         key={selected?.symbol ?? "all"}
         markets={seeds}
         max={80}
-        title={t(lang, "tape.title")}
+        title={selected ? selected.symbol : t(lang, "tape.title")}
         transport={selected ? "direct" : publicRealtimeTransport()}
         showFilter
+        height="calc(100vh - 15rem)"
       />
     </div>
   );

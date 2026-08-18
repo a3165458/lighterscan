@@ -42,50 +42,50 @@ export function PositionsTable({
   };
   const open = positions.filter((p) => p.position !== 0);
   if (!open.length) {
-    return (
-      <div className="panel px-4 py-10 text-center text-sm text-muted">{empty}</div>
-    );
+    return <div className="panel empty">{empty}</div>;
   }
   return (
     <div className="panel overflow-x-auto">
-      <table className="w-full min-w-[720px] text-left text-sm">
-        <thead className="text-[11px] uppercase tracking-[0.12em] text-faint">
-          <tr className="border-b border-line">
-            <th className="px-4 py-2.5 font-medium">{L.market}</th>
-            <th className="px-3 py-2.5 font-medium">{L.side}</th>
-            <th className="px-3 py-2.5 font-medium">{L.size}</th>
-            <th className="px-3 py-2.5 font-medium">{L.entry}</th>
-            <th className="px-3 py-2.5 font-medium">{L.value}</th>
-            <th className="px-3 py-2.5 font-medium">{L.upnl}</th>
-            <th className="px-3 py-2.5 font-medium">{L.rpnl}</th>
-            <th className="px-4 py-2.5 font-medium">{L.liq}</th>
+      <table className="tbl min-w-[700px]">
+        <thead>
+          <tr>
+            <th>{L.market}</th>
+            <th>{L.side}</th>
+            <th className="num">{L.size}</th>
+            <th className="num">{L.entry}</th>
+            <th className="num">{L.value}</th>
+            <th className="num">{L.upnl}</th>
+            <th className="num">{L.rpnl}</th>
+            <th className="num">{L.liq}</th>
           </tr>
         </thead>
         <tbody>
           {open.map((p) => (
-            <tr key={`${p.marketId}-${p.symbol}`} className="border-b border-line last:border-0">
-              <td className="px-4 py-2.5">
+            <tr key={`${p.marketId}-${p.symbol}`}>
+              <td>
                 <Link
                   href={`/markets/${encodeURIComponent(p.symbol)}`}
-                  className="flex items-center gap-2"
+                  className="flex items-center gap-2 font-medium"
                 >
-                  <TokenIcon symbol={p.symbol} size={20} />
+                  <TokenIcon symbol={p.symbol} size={18} />
                   {p.symbol}
                 </Link>
               </td>
-              <td className={`px-3 py-2.5 ${p.sign >= 0 ? "text-up" : "text-down"}`}>
-                {p.sign >= 0 ? L.long : L.short}
+              <td>
+                <span className={`font-medium ${p.sign >= 0 ? "text-up" : "text-down"}`}>
+                  {p.sign >= 0 ? L.long : L.short}
+                </span>
               </td>
-              <td className="px-3 py-2.5 tabular">{formatSize(p.position)}</td>
-              <td className="px-3 py-2.5 tabular">{formatPrice(p.avgEntryPrice)}</td>
-              <td className="px-3 py-2.5 tabular">{compactUsd(p.positionValue)}</td>
-              <td className={`px-3 py-2.5 tabular ${pnlClass(p.unrealizedPnl)}`}>
+              <td className="num text-muted">{formatSize(p.position)}</td>
+              <td className="num">{formatPrice(p.avgEntryPrice)}</td>
+              <td className="num">{compactUsd(p.positionValue)}</td>
+              <td className={`num font-medium ${pnlClass(p.unrealizedPnl)}`}>
                 {compactUsd(p.unrealizedPnl)}
               </td>
-              <td className={`px-3 py-2.5 tabular ${pnlClass(p.realizedPnl)}`}>
+              <td className={`num ${pnlClass(p.realizedPnl)}`}>
                 {compactUsd(p.realizedPnl)}
               </td>
-              <td className="px-4 py-2.5 tabular text-muted">
+              <td className="num text-faint">
                 {p.liquidationPrice ? formatPrice(p.liquidationPrice) : "—"}
               </td>
             </tr>
