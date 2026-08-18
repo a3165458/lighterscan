@@ -1,6 +1,13 @@
 import Link from "next/link";
 import { PositionsTable } from "@/components/positions-table";
-import { StatCard } from "@/components/stat-card";
+import {
+  PageHeader,
+  Panel,
+  PanelHead,
+  Stat,
+  StatStrip,
+  toneOf,
+} from "@/components/ui";
 import { compactUsd, formatPrice, formatTime } from "@/lib/format";
 import { t } from "@/lib/i18n";
 import { getRequestLang } from "@/lib/lang-server";
@@ -28,62 +35,86 @@ export default async function PoolPage() {
       trade.bidAccountId === PUBLIC_POOL_ACCOUNT_INDEX,
   );
 
+  const upnl = bundle
+    ? bundle.primary.positions.reduce((sum, row) => sum + row.unrealizedPnl, 0)
+    : 0;
+
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-semibold tracking-tight">{t(lang, "pool.title")}</h1>
-        <p className="mt-2 font-mono text-sm text-muted">#{PUBLIC_POOL_ACCOUNT_INDEX}</p>
-      </div>
+    <div className="space-y-3.5">
+      <PageHeader title={t(lang, "pool.title")}>
+        <span className="badge font-mono">#{PUBLIC_POOL_ACCOUNT_INDEX}</span>
+      </PageHeader>
       {bundle ? (
         <>
-          <div className="grid gap-3 sm:grid-cols-3">
-            <StatCard label={t(lang, "account.collateral")} value={compactUsd(bundle.primary.collateral)} />
-            <StatCard
+          <StatStrip cols={3}>
+            <Stat
+              label={t(lang, "account.collateral")}
+              value={compactUsd(bundle.primary.collateral)}
+              size="lg"
+            />
+            <Stat
               label={t(lang, "account.exposure")}
               value={compactUsd(
-                bundle.primary.positions.reduce((sum, row) => sum + Math.abs(row.positionValue), 0),
+                bundle.primary.positions.reduce(
+                  (sum, row) => sum + Math.abs(row.positionValue),
+                  0,
+                ),
               )}
+              size="lg"
             />
-            <StatCard
+            <Stat
               label={t(lang, "pos.upnl")}
-              value={compactUsd(
-                bundle.primary.positions.reduce((sum, row) => sum + row.unrealizedPnl, 0),
-              )}
+              value={compactUsd(upnl)}
+              tone={toneOf(upnl)}
+              size="lg"
             />
-          </div>
-          <PositionsTable
-            positions={bundle.primary.positions}
-            empty={t(lang, "pos.empty")}
-            labels={positionLabels(lang)}
-          />
+          </StatStrip>
+          <section className="space-y-2">
+            <h2 className="panel-title">{t(lang, "account.openPositions")}</h2>
+            <PositionsTable
+              positions={bundle.primary.positions}
+              empty={t(lang, "pos.empty")}
+              labels={positionLabels(lang)}
+            />
+          </section>
         </>
       ) : (
-        <p className="panel px-4 py-10 text-center text-sm text-muted">{t(lang, "pool.empty")}</p>
+        <p className="panel empty">{t(lang, "pool.empty")}</p>
       )}
-      <section className="panel overflow-hidden">
-        <div className="border-b border-line px-4 py-3 text-sm font-semibold">
-          {t(lang, "pool.trades")}
-        </div>
+      <Panel className="max-w-3xl overflow-hidden">
+        <PanelHead title={t(lang, "pool.trades")} />
         {trades.length === 0 ? (
-          <p className="px-4 py-10 text-center text-sm text-muted">{t(lang, "tape.waiting")}</p>
+          <p className="empty">{t(lang, "tape.waiting")}</p>
         ) : (
-          <ul>
-            {trades.slice(0, 40).map((trade) => (
-              <li
-                key={`${trade.tradeId}-${trade.timestamp}`}
-                className="flex items-center justify-between border-b border-line px-4 py-2 text-sm last:border-0"
-              >
-                <Link href={`/markets/${encodeURIComponent(trade.symbol || String(trade.marketId))}`}>
-                  {trade.symbol || trade.marketId}
-                </Link>
-                <span className="tabular">{formatPrice(trade.price)}</span>
-                <span className="tabular">{compactUsd(trade.usdAmount)}</span>
-                <span className="text-xs text-muted">{formatTime(trade.timestamp)}</span>
-              </li>
-            ))}
-          </ul>
+          <table className="tbl">
+            <thead>
+              <tr>
+                <th>{t(lang, "table.market")}</th>
+                <th className="num">{t(lang, "log.price")}</th>
+                <th className="num">{t(lang, "account.notional")}</th>
+                <th className="num">{t(lang, "log.time")}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {trades.slice(0, 40).map((trade) => (
+                <tr key={`${trade.tradeId}-${trade.timestamp}`}>
+                  <td className="font-medium">
+                    <Link
+                      href={`/markets/${encodeURIComponent(trade.symbol || String(trade.marketId))}`}
+                      className="link-accent"
+                    >
+                      {trade.symbol || trade.marketId}
+                    </Link>
+                  </td>
+                  <td className="num">{formatPrice(trade.price)}</td>
+                  <td className="num">{compactUsd(trade.usdAmount)}</td>
+                  <td className="num text-muted">{formatTime(trade.timestamp)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         )}
-      </section>
+      </Panel>
     </div>
   );
 }

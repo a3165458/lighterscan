@@ -34,17 +34,14 @@ function MarketFilterInner({
   }
 
   return (
-    <div className="flex flex-wrap items-center gap-2">
-      <span className="text-[11px] uppercase tracking-[0.12em] text-faint">
-        {t("filter.market")}
-      </span>
-      <div className="flex flex-wrap items-center gap-1">
+    <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5">
+      <span className="eyebrow">{t("filter.market")}</span>
+      <div className="flex flex-wrap items-center gap-0.5">
         <button
           type="button"
+          className="chip"
+          data-on={!current}
           onClick={() => setMarket("")}
-          className={`rounded-full px-2.5 py-1.5 text-xs ${
-            !current ? "bg-hover text-ink" : "text-muted hover:text-ink"
-          }`}
         >
           {t("filter.all")}
         </button>
@@ -52,12 +49,9 @@ function MarketFilterInner({
           <button
             key={market.symbol}
             type="button"
+            className="chip"
+            data-on={current === market.symbol}
             onClick={() => setMarket(market.symbol)}
-            className={`rounded-full px-2.5 py-1.5 text-xs ${
-              current === market.symbol
-                ? "bg-hover text-ink"
-                : "text-muted hover:text-ink"
-            }`}
           >
             {market.symbol}
           </button>
@@ -70,7 +64,7 @@ function MarketFilterInner({
         id="market-filter-select"
         value={current}
         onChange={(event) => setMarket(event.target.value)}
-        className="h-8 max-w-[10rem] rounded-full border border-line bg-elev px-2.5 text-xs text-ink"
+        className="field h-[26px] max-w-[9rem] text-[11.5px]"
       >
         <option value="">{t("filter.more")}</option>
         {markets.map((market) => (
@@ -89,7 +83,7 @@ export function MarketFilter(props: {
   param?: string;
 }) {
   return (
-    <Suspense fallback={<div className="h-8" />}>
+    <Suspense fallback={<div className="h-[26px]" />}>
       <MarketFilterInner {...props} />
     </Suspense>
   );

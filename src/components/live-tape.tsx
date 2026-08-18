@@ -29,6 +29,7 @@ export function LiveTape({
   transport = "direct",
   minUsd = 0,
   showFilter = false,
+  height = "32rem",
 }: {
   markets: Seed[];
   title?: string;
@@ -37,6 +38,7 @@ export function LiveTape({
   transport?: "direct" | "shared";
   minUsd?: TapeMin;
   showFilter?: boolean;
+  height?: string;
 }) {
   const { t } = useI18n();
   const [trades, setTrades] = useState<Trade[]>(seed);
@@ -169,38 +171,48 @@ export function LiveTape({
   const shown = ids.length === 0 ? "idle" : resolveLiveStatus(status, trades.length > 0);
 
   return (
-    <section className="panel overflow-hidden">
-      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-line px-4 py-3">
-        <div>
-          <h2 className="text-sm font-semibold">{title || t("tape.title")}</h2>
-          <p className="text-xs text-muted">{t("tape.hint")}</p>
-        </div>
-        <div className="flex items-center gap-2 text-xs text-muted">
+    <section className="panel flex flex-col overflow-hidden">
+      <div className="panel-head">
+        <h2 className="panel-title">{title || t("tape.title")}</h2>
+        <div className="flex items-center gap-2">
           {showFilter ? (
-            <div className="flex rounded-full bg-elev p-0.5">
+            <div className="seg">
               {TAPE_MIN_OPTIONS.map((value) => (
                 <button
                   key={value}
                   type="button"
+                  data-on={min === value}
                   onClick={() => setMin(value)}
-                  className={`rounded-full px-2 py-1 ${min === value ? "bg-card text-ink" : ""}`}
                 >
                   {value === 0 ? t("tape.minAny") : compactUsd(value)}
                 </button>
               ))}
             </div>
           ) : null}
-          <span className={shown === "live" ? "live-dot" : "h-1.5 w-1.5 rounded-full bg-faint"} />
-          {shown === "live"
-            ? t("tape.live")
-            : shown === "connecting"
-              ? t("tape.connecting")
-              : t("tape.idle")}
+          <span
+            className={`badge ${shown === "live" ? "badge-up" : ""}`}
+            title={t("tape.hint")}
+          >
+            <span className={shown === "live" ? "live-dot" : "dot-off"} />
+            {shown === "live"
+              ? t("tape.live")
+              : shown === "connecting"
+                ? t("tape.connecting")
+                : t("tape.idle")}
+          </span>
         </div>
       </div>
-      <div className="max-h-[520px] overflow-y-auto">
+      <div
+        className="flex items-center gap-2 border-b border-line px-3 py-1"
+        aria-hidden
+      >
+        <span className="eyebrow w-[56px]">{t("table.market")}</span>
+        <span className="eyebrow min-w-0 flex-1">{t("account.side")}</span>
+        <span className="eyebrow w-[74px] text-right">{t("account.notional")}</span>
+      </div>
+      <div className="scroll-y min-h-0 flex-1" style={{ maxHeight: height }}>
         {visible.length === 0 ? (
-          <p className="px-4 py-10 text-center text-sm text-muted">
+          <p className="empty">
             {trades.length ? t("tape.emptyFilter") : t("tape.waiting")}
           </p>
         ) : (
@@ -208,33 +220,38 @@ export function LiveTape({
             {visible.map((fill) => {
               const href = tradeLogHref(fill.txHash);
               const rowClass =
-                "deferred-row grid grid-cols-[72px_1fr_auto] items-center gap-2 px-4 py-2 text-sm";
+                "deferred-row flex items-center gap-2 px-3 py-[5px] text-[12.5px]";
               const body = (
                 <>
-                  <span className="font-medium">{fill.symbol || fill.marketId}</span>
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-2">
-                      <span className={fill.takerIsAsk ? "text-down" : "text-up"}>
-                        {fill.takerIsAsk ? t("tape.sell") : t("tape.buy")}
-                      </span>
-                      <span className="tabular">{formatSize(fill.size)}</span>
-                      <span className="text-muted">@</span>
-                      <span className="tabular">{formatPrice(fill.price)}</span>
-                    </div>
+                  <span className="w-[56px] shrink-0 truncate font-medium">
+                    {fill.symbol || fill.marketId}
+                  </span>
+                  <span className="flex min-w-0 flex-1 items-center gap-1.5">
+                    <span
+                      className={`w-[22px] shrink-0 font-medium ${fill.takerIsAsk ? "text-down" : "text-up"}`}
+                    >
+                      {fill.takerIsAsk ? t("tape.sell") : t("tape.buy")}
+                    </span>
+                    <span className="truncate tabular text-muted">
+                      {formatSize(fill.size)}
+                    </span>
+                    <span className="tabular">{formatPrice(fill.price)}</span>
                     {fill.type !== "trade" ? (
-                      <div className="truncate text-[11px] text-faint">{fill.type}</div>
+                      <span className="tag shrink-0">{fill.type}</span>
                     ) : null}
-                  </div>
-                  <div className="text-right">
-                    <div className="tabular text-sm">{compactUsd(fill.usdAmount)}</div>
-                    <div className="text-[11px] text-faint">{formatTimeOnly(fill.timestamp)}</div>
-                  </div>
+                  </span>
+                  <span className="w-[74px] shrink-0 text-right">
+                    <span className="block tabular">{compactUsd(fill.usdAmount)}</span>
+                    <span className="block text-[10.5px] tabular text-faint">
+                      {formatTimeOnly(fill.timestamp)}
+                    </span>
+                  </span>
                 </>
               );
               return (
                 <li
                   key={`${fill.tradeId}-${fill.timestamp}`}
-                  className="border-b border-line last:border-0"
+                  className="border-b border-line/60 last:border-0"
                 >
                   {href ? (
                     <Link href={href} className={`${rowClass} hover:bg-hover`}>

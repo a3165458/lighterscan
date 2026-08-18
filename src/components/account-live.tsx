@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useI18n } from "@/components/i18n-provider";
-import { StatCard } from "@/components/stat-card";
+import { Stat, StatStrip } from "@/components/ui";
 import { compactNum, compactUsd } from "@/lib/format";
 import { RH_WS } from "@/lib/config";
 import { mergeAccountStreamMessage } from "@/lib/account-stats";
@@ -80,23 +80,8 @@ export function AccountLive({
       : t("account.tradesCount", { count: compactNum(stats?.totalTrades ?? 0, 0) });
 
   return (
-    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-      <StatCard
-        label={t("account.vol24")}
-        value={compactUsd(stats?.dailyVolume ?? 0)}
-        hint={vol24Hint}
-      />
-      <StatCard
-        label={t("account.vol7")}
-        value={compactUsd(stats?.weeklyVolume ?? 0)}
-        hint={t("account.tradesCount", { count: compactNum(stats?.weeklyTrades ?? 0, 0) })}
-      />
-      <StatCard
-        label={t("account.volAll")}
-        value={compactUsd(stats?.totalVolume ?? 0)}
-        hint={volAllHint}
-      />
-      <StatCard
+    <StatStrip cols={4}>
+      <Stat
         label={t("account.portfolio")}
         value={compactUsd(stats?.portfolioValue ?? 0)}
         hint={
@@ -104,7 +89,23 @@ export function AccountLive({
             ? t("account.leverage", { value: stats.leverage.toFixed(2) })
             : t("account.liveStats")
         }
+        size="lg"
       />
-    </div>
+      <Stat
+        label={t("account.vol24")}
+        value={compactUsd(stats?.dailyVolume ?? 0)}
+        hint={vol24Hint}
+      />
+      <Stat
+        label={t("account.vol7")}
+        value={compactUsd(stats?.weeklyVolume ?? 0)}
+        hint={t("account.tradesCount", { count: compactNum(stats?.weeklyTrades ?? 0, 0) })}
+      />
+      <Stat
+        label={t("account.volAll")}
+        value={compactUsd(stats?.totalVolume ?? 0)}
+        hint={volAllHint}
+      />
+    </StatStrip>
   );
 }
