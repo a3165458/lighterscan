@@ -1,5 +1,6 @@
 import { MarketFilter } from "@/components/market-filter";
 import { TrackerBoard } from "@/components/tracker-board";
+import { PageHeader } from "@/components/ui";
 import { t } from "@/lib/i18n";
 import { getRequestLang } from "@/lib/lang-server";
 import { perpChoices, resolveMarketChoice } from "@/lib/market-filter";
@@ -86,18 +87,12 @@ export default async function TrackersPage({
         );
 
   return (
-    <div className="space-y-6">
-      <div>
-        <p className="text-xs font-medium uppercase tracking-[0.16em] text-accent">
-          {t(lang, "tracker.kicker")}
-        </p>
-        <h1 className="mt-1 text-3xl font-semibold tracking-tight">
-          {t(lang, "tracker.title")}
-        </h1>
-        <p className="mt-2 max-w-3xl text-sm text-muted">
-          {t(lang, "tracker.subtitle")}
-        </p>
-      </div>
+    <div className="space-y-3.5">
+      <PageHeader
+        eyebrow={t(lang, "tracker.kicker")}
+        title={t(lang, "tracker.title")}
+        lede={t(lang, "tracker.subtitle")}
+      />
       <MarketFilter markets={choices} selected={selected?.symbol} />
       <TrackerBoard
         sample={sample}

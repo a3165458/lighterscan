@@ -1,5 +1,5 @@
 import { MarketFilter } from "@/components/market-filter";
-import { StatCard } from "@/components/stat-card";
+import { PageHeader, Panel, PanelHead, Stat, StatStrip } from "@/components/ui";
 import { VolumeBars } from "@/components/volume-bars";
 import { compactUsd, formatTime, openInterestUsd } from "@/lib/format";
 import { t } from "@/lib/i18n";
@@ -78,53 +78,55 @@ export default async function StatsPage({
     }));
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <h1 className="text-3xl font-semibold tracking-tight">{t(lang, "stats.title")}</h1>
+    <div className="space-y-3.5">
+      <PageHeader title={t(lang, "stats.title")}>
         <MarketFilter markets={choices} selected={selected?.symbol} />
-      </div>
-      <div className="grid gap-3 sm:grid-cols-3">
-        <StatCard label={t(lang, "stats.volume")} value={compactUsd(volume)} />
-        <StatCard label={t(lang, "stats.oi")} value={compactUsd(oi)} />
-        <StatCard
+      </PageHeader>
+      <StatStrip cols={3}>
+        <Stat label={t(lang, "stats.volume")} value={compactUsd(volume)} size="lg" />
+        <Stat label={t(lang, "stats.oi")} value={compactUsd(oi)} size="lg" />
+        <Stat
           label={t(lang, "stats.liquidations")}
           value={compactUsd(liquidationNotional)}
+          size="lg"
+        />
+      </StatStrip>
+      <div className="grid items-start gap-3.5 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
+        <Panel className="flex h-[26rem] flex-col overflow-hidden">
+          <PanelHead
+            title={t(lang, "stats.volumeCurve")}
+            hint={
+              selected
+                ? t(lang, "stats.volumeCurveHintMarket", { market: selected.symbol })
+                : t(lang, "stats.volumeCurveHint")
+            }
+          />
+          {curve.length === 0 ? (
+            <p className="empty">
+              {selected
+                ? t(lang, "stats.emptyMarket", { market: selected.symbol })
+                : t(lang, "stats.empty")}
+            </p>
+          ) : (
+            <div className="flex min-h-0 flex-1 items-end gap-[3px] px-3 pt-4 pb-3.5">
+              {curve.map((row) => (
+                <div
+                  key={row.t}
+                  className="flex-1 rounded-t-[2px] bg-accent/30 hover:bg-accent/60"
+                  style={{ height: `${Math.max(3, (row.volume / max) * 100)}%` }}
+                  title={`${formatTime(row.t)} · ${compactUsd(row.volume)}`}
+                />
+              ))}
+            </div>
+          )}
+        </Panel>
+        <VolumeBars
+          title={t(lang, "home.volumeMix")}
+          hint={t(lang, "home.volumeMixHint")}
+          rows={mix}
+          totalLabel={t(lang, "home.volumeMixTotal")}
         />
       </div>
-      <div className="panel p-4">
-        <div className="mb-3">
-          <h2 className="text-sm font-semibold">{t(lang, "stats.volumeCurve")}</h2>
-          <p className="mt-0.5 text-xs text-muted">
-            {selected
-              ? t(lang, "stats.volumeCurveHintMarket", { market: selected.symbol })
-              : t(lang, "stats.volumeCurveHint")}
-          </p>
-        </div>
-        {curve.length === 0 ? (
-          <p className="py-10 text-center text-sm text-muted">
-            {selected
-              ? t(lang, "stats.emptyMarket", { market: selected.symbol })
-              : t(lang, "stats.empty")}
-          </p>
-        ) : (
-          <div className="flex h-56 items-end gap-1">
-            {curve.map((row) => (
-              <div
-                key={row.t}
-                className="flex-1 rounded-sm bg-accent/70"
-                style={{ height: `${Math.max(6, (row.volume / max) * 100)}%` }}
-                title={`${formatTime(row.t)} · ${compactUsd(row.volume)}`}
-              />
-            ))}
-          </div>
-        )}
-      </div>
-      <VolumeBars
-        title={t(lang, "home.volumeMix")}
-        hint={t(lang, "home.volumeMixHint")}
-        rows={mix}
-        totalLabel={t(lang, "home.volumeMixTotal")}
-      />
     </div>
   );
 }

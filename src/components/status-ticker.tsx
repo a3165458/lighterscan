@@ -69,25 +69,30 @@ export function StatusTicker() {
         ? t("ticker.stale")
         : t("ticker.missing");
 
+  const metrics = [
+    { label: t("ticker.volume"), value: state ? compactUsd(state.dailyVolume) : "—" },
+    { label: t("ticker.oi"), value: state ? compactUsd(state.openInterest) : "—" },
+    { label: t("ticker.trades"), value: state ? compactNum(state.dailyTrades, 0) : "—" },
+  ];
+
   return (
-    <div className="border-b border-line bg-elev/70 text-[11px]">
-      <div className="mx-auto flex max-w-7xl items-center gap-4 overflow-x-auto px-4 py-1.5 tabular">
-        <span className="flex shrink-0 items-center gap-1.5 font-medium">
-          <span className={live ? "live-dot" : "h-1.5 w-1.5 rounded-full bg-faint"} />
+    <div className="border-b border-line bg-elev/60 text-[11px]">
+      <div className="section-nav mx-auto max-w-[1440px] items-center gap-x-4 px-3 py-1 tabular sm:px-4">
+        <span
+          className={`flex h-5 shrink-0 items-center gap-1.5 font-medium tracking-wide ${
+            live ? "text-up" : "text-faint"
+          }`}
+        >
+          <span className={live ? "live-dot" : "dot-off"} />
           {label}
         </span>
-        <span className="text-muted">
-          {t("ticker.volume")}{" "}
-          <span className="text-ink">{state ? compactUsd(state.dailyVolume) : "—"}</span>
-        </span>
-        <span className="text-muted">
-          {t("ticker.oi")}{" "}
-          <span className="text-ink">{state ? compactUsd(state.openInterest) : "—"}</span>
-        </span>
-        <span className="text-muted">
-          {t("ticker.trades")}{" "}
-          <span className="text-ink">{state ? compactNum(state.dailyTrades, 0) : "—"}</span>
-        </span>
+        <span className="h-3 w-px shrink-0 bg-line" aria-hidden />
+        {metrics.map((metric) => (
+          <span key={metric.label} className="flex shrink-0 items-baseline gap-1.5 text-faint">
+            {metric.label}
+            <span className="font-medium text-muted">{metric.value}</span>
+          </span>
+        ))}
       </div>
     </div>
   );

@@ -10,14 +10,13 @@ export default function ErrorView({
 }) {
   const { t } = useI18n();
   return (
-    <div className="mx-auto max-w-md py-24 text-center">
-      <h1 className="text-2xl font-semibold">{t("error.title")}</h1>
-      <p className="mt-2 text-sm text-muted">{t("error.fallback")}</p>
-      <button
-        type="button"
-        onClick={reset}
-        className="mt-6 rounded-full bg-accent px-4 py-2 text-sm font-medium text-bg"
-      >
+    <div className="mx-auto max-w-sm py-20 text-center sm:py-28">
+      <span className="eyebrow text-down">Error</span>
+      <h1 className="page-title mt-1.5">{t("error.title")}</h1>
+      <p className="mt-2 text-[12.5px] leading-relaxed text-muted">
+        {t("error.fallback")}
+      </p>
+      <button type="button" onClick={reset} className="btn btn-accent mt-5">
         {t("error.retry")}
       </button>
     </div>

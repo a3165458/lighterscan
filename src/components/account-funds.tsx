@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { useI18n } from "@/components/i18n-provider";
+import { Pager } from "@/components/ui";
 import {
   canLinkAddress,
   compactUsd,
@@ -48,10 +49,12 @@ export function AccountFunds({
   account,
   selves,
   initial,
+  anchorId = "funds",
 }: {
   account: string;
   selves: Array<string | number>;
   initial: FundPage;
+  anchorId?: string;
 }) {
   const { t } = useI18n();
   const [page, setPage] = useState(1);
@@ -90,24 +93,26 @@ export function AccountFunds({
   }
 
   return (
-    <section id="funds" className="panel overflow-hidden">
-      <div className="border-b border-line px-4 py-3">
-        <h2 className="text-sm font-semibold">{t("funds.title")}</h2>
-        <p className="mt-0.5 text-xs text-muted">{t("funds.hint")}</p>
+    <section id={anchorId} className="panel overflow-hidden scroll-mt-24">
+      <div className="panel-head">
+        <div className="min-w-0">
+          <h2 className="panel-title">{t("funds.title")}</h2>
+          <p className="panel-sub">{t("funds.hint")}</p>
+        </div>
       </div>
       {rows.length === 0 ? (
-        <p className="px-4 py-10 text-center text-sm text-muted">{t("funds.empty")}</p>
+        <p className="empty">{t("funds.empty")}</p>
       ) : (
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[760px] text-left text-sm">
-            <thead className="text-[11px] uppercase tracking-[0.12em] text-faint">
-              <tr className="border-b border-line">
-                <th className="px-4 py-2 font-medium">{t("account.time")}</th>
-                <th className="px-3 py-2 font-medium">{t("funds.type")}</th>
-                <th className="px-3 py-2 font-medium">{t("funds.amount")}</th>
-                <th className="px-3 py-2 font-medium">{t("log.status")}</th>
-                <th className="px-3 py-2 font-medium">{t("funds.counterparty")}</th>
-                <th className="px-4 py-2 font-medium">{t("log.hash")}</th>
+          <table className="tbl min-w-[720px]">
+            <thead>
+              <tr>
+                <th>{t("account.time")}</th>
+                <th>{t("funds.type")}</th>
+                <th className="num">{t("funds.amount")}</th>
+                <th>{t("log.status")}</th>
+                <th>{t("funds.counterparty")}</th>
+                <th className="num">{t("log.hash")}</th>
               </tr>
             </thead>
             <tbody>
@@ -118,50 +123,22 @@ export function AccountFunds({
           </table>
         </div>
       )}
-      {error ? <p className="px-4 py-2 text-xs text-down">{error}</p> : null}
+      {error ? <p className="px-3 py-2 text-[11.5px] text-down">{error}</p> : null}
       {pages.length > 1 || hasNext || page > 1 ? (
-        <nav
-          className="flex items-center justify-between gap-3 border-t border-line px-4 py-3"
-          aria-label={t("funds.title")}
-        >
-          <p className="w-20 shrink-0 text-xs tabular text-muted">
-            {t("funds.page", { page })}
-          </p>
-          <div className="flex items-center justify-end gap-1.5">
-            <button
-              type="button"
-              onClick={() => void openPage(page - 1)}
-              disabled={loading || page <= 1}
-              className="h-8 w-16 shrink-0 rounded-full border border-line bg-elev text-sm leading-none hover:bg-hover disabled:opacity-60"
-            >
-              {t("funds.prev")}
-            </button>
-            {pages.map((value) => (
-              <button
-                key={value}
-                type="button"
-                onClick={() => void openPage(value)}
-                disabled={loading}
-                aria-current={value === page ? "page" : undefined}
-                className={`h-8 w-8 shrink-0 rounded-full border text-sm leading-none tabular ${
-                  value === page
-                    ? "border-line bg-card font-medium"
-                    : "border-line bg-elev hover:bg-hover"
-                } disabled:opacity-60`}
-              >
-                {value}
-              </button>
-            ))}
-            <button
-              type="button"
-              onClick={() => void openPage(page + 1)}
-              disabled={loading || (!hasNext && page >= knownEnd)}
-              className="h-8 w-16 shrink-0 rounded-full border border-line bg-elev text-sm leading-none hover:bg-hover disabled:opacity-60"
-            >
-              {t("funds.next")}
-            </button>
-          </div>
-        </nav>
+        <Pager
+          page={page}
+          pages={pages}
+          loading={loading}
+          hasNext={hasNext}
+          knownEnd={knownEnd}
+          onOpen={openPage}
+          labels={{
+            aria: t("funds.title"),
+            page: t("funds.page", { page }),
+            prev: t("funds.prev"),
+            next: t("funds.next"),
+          }}
+        />
       ) : null}
     </section>
   );
@@ -171,23 +148,28 @@ function FundRow({ row }: { row: FundMovement }) {
   const { t } = useI18n();
   const inbound = row.direction === "deposit" || row.direction === "transfer_in";
   return (
-    <tr className="border-b border-line last:border-0">
-      <td className="px-4 py-2 tabular text-muted">
-        <Link href={`/logs/${row.hash}`} className="hover:text-accent">
+    <tr>
+      <td className="tabular text-muted">
+        <Link href={`/logs/${row.hash}`} className="link-accent">
           {formatTime(row.timestamp)}
         </Link>
       </td>
-      <td className={`px-3 py-2 ${inbound ? "text-up" : "text-down"}`}>
-        {t(DIRECTION_KEYS[row.direction])}
-        {row.route ? <span className="text-muted"> · {row.route}</span> : null}
+      <td>
+        <span className={`font-medium ${inbound ? "text-up" : "text-down"}`}>
+          {t(DIRECTION_KEYS[row.direction])}
+        </span>
+        {row.route ? <span className="text-faint"> · {row.route}</span> : null}
       </td>
-      <td className="px-3 py-2 tabular">{formatFundAmount(row.amount, row.asset)}</td>
-      <td className="px-3 py-2 text-muted">{t(fundStatusKey(row.status))}</td>
-      <td className="px-3 py-2">
+      <td className="num font-medium">{formatFundAmount(row.amount, row.asset)}</td>
+      <td className="text-muted">{t(fundStatusKey(row.status))}</td>
+      <td>
         <FundCounterparty row={row} />
       </td>
-      <td className="px-4 py-2">
-        <Link href={`/logs/${row.hash}`} className="font-mono text-xs text-muted hover:text-accent">
+      <td className="num">
+        <Link
+          href={`/logs/${row.hash}`}
+          className="font-mono text-[11px] text-faint link-accent"
+        >
           {row.hash.slice(0, 10)}
         </Link>
       </td>
@@ -198,20 +180,20 @@ function FundRow({ row }: { row: FundMovement }) {
 function FundCounterparty({ row }: { row: FundMovement }) {
   if (row.counterpartyKind === "account" && row.counterparty) {
     return (
-      <Link href={`/account/${row.counterparty}`} className="hover:text-accent">
+      <Link href={`/account/${row.counterparty}`} className="link-accent text-muted">
         {shortAccount(row.counterparty)}
       </Link>
     );
   }
   if (row.counterpartyKind === "address" && canLinkAddress(row.counterparty)) {
     return (
-      <Link href={`/address/${row.counterparty}`} className="font-mono hover:text-accent">
+      <Link href={`/address/${row.counterparty}`} className="font-mono text-muted link-accent">
         {shortAddress(row.counterparty, 4)}
       </Link>
     );
   }
   if (row.counterparty) {
-    return <span className="font-mono text-muted">{shortAddress(row.counterparty, 4)}</span>;
+    return <span className="font-mono text-faint">{shortAddress(row.counterparty, 4)}</span>;
   }
-  return "—";
+  return <span className="text-faint">—</span>;
 }

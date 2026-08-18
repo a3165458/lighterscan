@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { MarketFilter } from "@/components/market-filter";
+import { PageHeader } from "@/components/ui";
 import { t } from "@/lib/i18n";
 import { getRequestLang } from "@/lib/lang-server";
 import { compactUsd, formatPrice, formatSize, pnlClass } from "@/lib/format";
@@ -32,58 +33,74 @@ export default async function PositionsPage({
   rows = filterByMarket(rows, selected, (row) => row);
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-semibold tracking-tight">{t(lang, "pos.boardTitle")}</h1>
-        <p className="mt-2 text-sm text-muted">{t(lang, "pos.sample")}</p>
-      </div>
+    <div className="space-y-3.5">
+      <PageHeader title={t(lang, "pos.boardTitle")} lede={t(lang, "pos.sample")} />
       <MarketFilter markets={choices} selected={selected?.symbol} />
       <div className="panel overflow-hidden">
         {rows.length === 0 ? (
-          <p className="px-4 py-10 text-center text-sm text-muted">
+          <p className="empty">
             {selected
               ? t(lang, "pos.emptyMarket", { market: selected.symbol })
               : t(lang, "pos.emptyBoard")}
           </p>
         ) : (
-          <table className="w-full min-w-[760px] text-left text-sm">
-            <thead className="text-[11px] uppercase tracking-[0.12em] text-faint">
-              <tr className="border-b border-line">
-                <th className="px-4 py-2.5 font-medium">{t(lang, "tracker.account")}</th>
-                <th className="px-3 py-2.5 font-medium">{t(lang, "table.market")}</th>
-                <th className="px-3 py-2.5 font-medium">{t(lang, "pos.side")}</th>
-                <th className="px-3 py-2.5 font-medium">{t(lang, "pos.size")}</th>
-                <th className="px-3 py-2.5 font-medium">{t(lang, "pos.entry")}</th>
-                <th className="px-3 py-2.5 font-medium">{t(lang, "pos.lev")}</th>
-                <th className="px-3 py-2.5 font-medium">{t(lang, "pos.upnl")}</th>
-                <th className="px-4 py-2.5 font-medium">{t(lang, "pos.value")}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((row) => (
-                <tr key={`${row.accountId}-${row.marketId}`} className="border-b border-line last:border-0">
-                  <td className="px-4 py-2.5 font-mono">
-                    <Link href={`/account/${row.accountId}`}>#{row.accountId}</Link>
-                  </td>
-                  <td className="px-3 py-2.5">
-                    <Link href={`/markets/${encodeURIComponent(row.symbol)}`}>{row.symbol}</Link>
-                  </td>
-                  <td className={`px-3 py-2.5 ${row.side === "long" ? "text-up" : "text-down"}`}>
-                    {row.side === "long" ? t(lang, "pos.long") : t(lang, "pos.short")}
-                  </td>
-                  <td className="px-3 py-2.5 tabular">{formatSize(row.size)}</td>
-                  <td className="px-3 py-2.5 tabular">{formatPrice(row.entry)}</td>
-                  <td className="px-3 py-2.5 tabular">
-                    {row.leverage ? `${row.leverage.toFixed(1)}x` : "—"}
-                  </td>
-                  <td className={`px-3 py-2.5 tabular ${pnlClass(row.unrealizedPnl)}`}>
-                    {compactUsd(row.unrealizedPnl)}
-                  </td>
-                  <td className="px-4 py-2.5 tabular">{compactUsd(row.value)}</td>
+          <div className="overflow-x-auto">
+            <table className="tbl min-w-[720px]">
+              <thead>
+                <tr>
+                  <th>{t(lang, "tracker.account")}</th>
+                  <th>{t(lang, "table.market")}</th>
+                  <th>{t(lang, "pos.side")}</th>
+                  <th className="num">{t(lang, "pos.size")}</th>
+                  <th className="num">{t(lang, "pos.entry")}</th>
+                  <th className="num">{t(lang, "pos.lev")}</th>
+                  <th className="num">{t(lang, "pos.upnl")}</th>
+                  <th className="num">{t(lang, "pos.value")}</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {rows.map((row) => (
+                  <tr
+                    key={`${row.accountId}-${row.marketId}`}
+                    className="deferred-row"
+                  >
+                    <td>
+                      <Link
+                        href={`/account/${row.accountId}`}
+                        className="font-mono text-muted link-accent"
+                      >
+                        #{row.accountId}
+                      </Link>
+                    </td>
+                    <td className="font-medium">
+                      <Link
+                        href={`/markets/${encodeURIComponent(row.symbol)}`}
+                        className="link-accent"
+                      >
+                        {row.symbol}
+                      </Link>
+                    </td>
+                    <td>
+                      <span
+                        className={`font-medium ${row.side === "long" ? "text-up" : "text-down"}`}
+                      >
+                        {row.side === "long" ? t(lang, "pos.long") : t(lang, "pos.short")}
+                      </span>
+                    </td>
+                    <td className="num text-muted">{formatSize(row.size)}</td>
+                    <td className="num">{formatPrice(row.entry)}</td>
+                    <td className="num text-muted">
+                      {row.leverage ? `${row.leverage.toFixed(1)}x` : "—"}
+                    </td>
+                    <td className={`num font-medium ${pnlClass(row.unrealizedPnl)}`}>
+                      {compactUsd(row.unrealizedPnl)}
+                    </td>
+                    <td className="num">{compactUsd(row.value)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </div>
     </div>

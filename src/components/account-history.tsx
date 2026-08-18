@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { useI18n } from "@/components/i18n-provider";
+import { Pager } from "@/components/ui";
 import {
   compactUsd,
   formatPrice,
@@ -25,10 +26,12 @@ export function AccountHistory({
   account,
   selves,
   initial,
+  anchorId,
 }: {
   account: string;
   selves: Array<string | number>;
   initial: HistoryPage;
+  anchorId?: string;
 }) {
   const { t } = useI18n();
   const [page, setPage] = useState(1);
@@ -67,32 +70,30 @@ export function AccountHistory({
   }
 
   return (
-    <section className="panel overflow-hidden">
-      <div className="border-b border-line px-4 py-3">
-        <div className="flex flex-wrap items-baseline justify-between gap-2">
-          <h2 className="text-sm font-semibold">{t("history.title")}</h2>
-          {fills.length ? (
-            <p className={`text-sm tabular ${pnlClass(realized)}`}>
-              {t("history.estRealized", { value: signedUsd(realized) })}
-            </p>
-          ) : null}
-        </div>
+    <section id={anchorId} className="panel overflow-hidden scroll-mt-24">
+      <div className="panel-head">
+        <h2 className="panel-title">{t("history.title")}</h2>
+        {fills.length ? (
+          <p className={`text-[12.5px] tabular ${pnlClass(realized)}`}>
+            {t("history.estRealized", { value: signedUsd(realized) })}
+          </p>
+        ) : null}
       </div>
       {fills.length === 0 ? (
-        <p className="px-4 py-10 text-center text-sm text-muted">{t("history.empty")}</p>
+        <p className="empty">{t("history.empty")}</p>
       ) : (
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[820px] text-left text-sm">
-            <thead className="text-[11px] uppercase tracking-[0.12em] text-faint">
-              <tr className="border-b border-line">
-                <th className="px-4 py-2 font-medium">{t("account.time")}</th>
-                <th className="px-3 py-2 font-medium">{t("table.market")}</th>
-                <th className="px-3 py-2 font-medium">{t("account.side")}</th>
-                <th className="px-3 py-2 font-medium">{t("account.size")}</th>
-                <th className="px-3 py-2 font-medium">{t("account.price")}</th>
-                <th className="px-3 py-2 font-medium">{t("account.notional")}</th>
-                <th className="px-3 py-2 font-medium">{t("history.pnl")}</th>
-                <th className="px-4 py-2 font-medium">{t("history.counterparty")}</th>
+          <table className="tbl min-w-[800px]">
+            <thead>
+              <tr>
+                <th>{t("account.time")}</th>
+                <th>{t("table.market")}</th>
+                <th>{t("account.side")}</th>
+                <th className="num">{t("account.size")}</th>
+                <th className="num">{t("account.price")}</th>
+                <th className="num">{t("account.notional")}</th>
+                <th className="num">{t("history.pnl")}</th>
+                <th className="num">{t("history.counterparty")}</th>
               </tr>
             </thead>
             <tbody>
@@ -107,50 +108,22 @@ export function AccountHistory({
           </table>
         </div>
       )}
-      {error ? <p className="px-4 py-2 text-xs text-down">{error}</p> : null}
+      {error ? <p className="px-3 py-2 text-[11.5px] text-down">{error}</p> : null}
       {pages.length > 1 || hasNext || page > 1 ? (
-        <nav
-          className="flex items-center justify-between gap-3 border-t border-line px-4 py-3"
-          aria-label={t("history.title")}
-        >
-          <p className="w-20 shrink-0 text-xs tabular text-muted">
-            {t("history.page", { page })}
-          </p>
-          <div className="flex items-center justify-end gap-1.5">
-            <button
-              type="button"
-              onClick={() => void openPage(page - 1)}
-              disabled={loading || page <= 1}
-              className="h-8 w-16 shrink-0 rounded-full border border-line bg-elev text-sm leading-none hover:bg-hover disabled:opacity-60"
-            >
-              {t("history.prev")}
-            </button>
-            {pages.map((value) => (
-              <button
-                key={value}
-                type="button"
-                onClick={() => void openPage(value)}
-                disabled={loading}
-                aria-current={value === page ? "page" : undefined}
-                className={`h-8 w-8 shrink-0 rounded-full border text-sm leading-none tabular ${
-                  value === page
-                    ? "border-line bg-card font-medium"
-                    : "border-line bg-elev hover:bg-hover"
-                } disabled:opacity-60`}
-              >
-                {value}
-              </button>
-            ))}
-            <button
-              type="button"
-              onClick={() => void openPage(page + 1)}
-              disabled={loading || (!hasNext && page >= knownEnd)}
-              className="h-8 w-16 shrink-0 rounded-full border border-line bg-elev text-sm leading-none hover:bg-hover disabled:opacity-60"
-            >
-              {t("history.next")}
-            </button>
-          </div>
-        </nav>
+        <Pager
+          page={page}
+          pages={pages}
+          loading={loading}
+          hasNext={hasNext}
+          knownEnd={knownEnd}
+          onOpen={openPage}
+          labels={{
+            aria: t("history.title"),
+            page: t("history.page", { page }),
+            prev: t("history.prev"),
+            next: t("history.next"),
+          }}
+        />
       ) : null}
     </section>
   );
@@ -159,36 +132,45 @@ export function AccountHistory({
 function HistoryRow({ fill, pnl }: { fill: HistoryFill; pnl?: FillPnl }) {
   const { t } = useI18n();
   const realized = pnl?.realized ?? 0;
+  const sell = fill.side === "sell";
   return (
-    <tr className="border-b border-line last:border-0">
-      <td className="px-4 py-2 tabular text-muted">
-        <Link href={`/logs/${fill.hash}`} className="hover:text-accent">
+    <tr>
+      <td className="tabular text-muted">
+        <Link href={`/logs/${fill.hash}`} className="link-accent">
           {formatTime(fill.timestamp)}
         </Link>
       </td>
-      <td className="px-3 py-2">
-        <Link href={`/markets/${encodeURIComponent(fill.symbol || String(fill.marketId))}`}>
+      <td className="font-medium">
+        <Link
+          href={`/markets/${encodeURIComponent(fill.symbol || String(fill.marketId))}`}
+          className="link-accent"
+        >
           {fill.symbol || fill.marketId}
         </Link>
       </td>
-      <td className={`px-3 py-2 ${fill.side === "sell" ? "text-down" : "text-up"}`}>
-        {fill.side === "sell" ? t("tape.sell") : t("tape.buy")} ·{" "}
-        {fill.role === "taker" ? t("history.taker") : t("history.maker")}
-        {fill.kind.startsWith("Liquidation") ? ` · ${t("history.liq")}` : ""}
+      <td>
+        <span className={`font-medium ${sell ? "text-down" : "text-up"}`}>
+          {sell ? t("tape.sell") : t("tape.buy")}
+        </span>
+        <span className="text-faint">
+          {" · "}
+          {fill.role === "taker" ? t("history.taker") : t("history.maker")}
+          {fill.kind.startsWith("Liquidation") ? ` · ${t("history.liq")}` : ""}
+        </span>
       </td>
-      <td className="px-3 py-2 tabular">{formatSize(fill.size)}</td>
-      <td className="px-3 py-2 tabular">{formatPrice(fill.price)}</td>
-      <td className="px-3 py-2 tabular">{compactUsd(fill.usdAmount)}</td>
-      <td className={`px-3 py-2 tabular ${pnlClass(realized)}`}>
-        {realized === 0 ? "—" : signedUsd(realized)}
+      <td className="num text-muted">{formatSize(fill.size)}</td>
+      <td className="num">{formatPrice(fill.price)}</td>
+      <td className="num">{compactUsd(fill.usdAmount)}</td>
+      <td className={`num ${pnlClass(realized)}`}>
+        {realized === 0 ? <span className="text-faint">—</span> : signedUsd(realized)}
       </td>
-      <td className="px-4 py-2">
+      <td className="num">
         {fill.counterparty ? (
-          <Link href={`/account/${fill.counterparty}`} className="hover:text-accent">
+          <Link href={`/account/${fill.counterparty}`} className="link-accent text-muted">
             {shortAccount(fill.counterparty)}
           </Link>
         ) : (
-          "—"
+          <span className="text-faint">—</span>
         )}
       </td>
     </tr>
