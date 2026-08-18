@@ -47,8 +47,8 @@ function fakeKv(store: Map<string, unknown>, onGet?: () => void): SharedKv {
   };
 }
 
-test("snapshot memo TTL matches the 20s live poll", () => {
-  assert.equal(SNAPSHOT_MEMO_MS, 20_000);
+test("snapshot memo TTL matches the 60s live poll", () => {
+  assert.equal(SNAPSHOT_MEMO_MS, 60_000);
   assert.equal(SNAPSHOT_MEMO_MS, LIVE_POLL_MS);
 });
 
