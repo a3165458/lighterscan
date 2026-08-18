@@ -56,16 +56,14 @@ function useSearch() {
   return ctx;
 }
 
-export function SearchBox({ compact = false }: { compact?: boolean }) {
+export function SearchBox() {
   const { t } = useI18n();
   const { setOpen } = useSearch();
   return (
     <button
       type="button"
       onClick={() => setOpen(true)}
-      className={`btn justify-start text-muted hover:text-ink ${
-        compact ? "" : "w-[30px] sm:w-52 lg:w-64"
-      }`}
+      className="btn w-[30px] justify-start text-muted hover:text-ink sm:w-52 lg:w-64"
       aria-haspopup="dialog"
       aria-label={t("search.button")}
     >
