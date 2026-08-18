@@ -9,7 +9,8 @@ import {
 import type { AccountPosition, Trade } from "./types.ts";
 
 export const PUBLIC_REALTIME_KEY = "lighterscan:public-realtime:v1";
-export const PUBLIC_REALTIME_STALE_MS = 45_000;
+/** Fresh through a 60s live poll plus a short collector reconnect. */
+export const PUBLIC_REALTIME_STALE_MS = 180_000;
 const LIVE_TRADE_LIMIT = 100;
 const TRACKER_SOURCE_LIMIT = 1_200;
 const TRACKER_MARKET_LIMIT = 40;
