@@ -138,6 +138,10 @@ export function formatPct(value: number, digits = 2): string {
   return `${sign}${value.toFixed(digits)}%`;
 }
 
+export function formatFundingPct(rate: number, digits = 4): string {
+  return formatPct(rate * 100, digits);
+}
+
 export function formatSize(value: number): string {
   const abs = Math.abs(value);
   if (abs >= 1000) return compactNum(value);

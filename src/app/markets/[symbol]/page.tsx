@@ -3,6 +3,7 @@ import { LiveTape } from "@/components/live-tape";
 import { OrderBookView } from "@/components/order-book";
 import { PriceChart } from "@/components/price-chart";
 import { TokenIcon } from "@/components/token-icon";
+import { FundingStrip } from "@/components/funding-strip";
 import { Crumbs, Stat, StatStrip } from "@/components/ui";
 import {
   compactNum,
@@ -21,7 +22,7 @@ import {
   getOrderBook,
   getRecentTrades,
 } from "@/lib/rh";
-import { pickMarketFunding } from "@/lib/funding";
+import { hasLighterFunding, pickMarketFunding } from "@/lib/funding";
 import { publicRealtimeTransport } from "@/lib/shared-cache";
 import { mergeHistoricalSeries } from "@/lib/series";
 
@@ -139,11 +140,15 @@ export default async function MarketPage({
           }
         />
         <Stat
-          label={t(lang, "market.funding")}
-          value={funding ? `${((funding.lighter ?? 0) * 100).toFixed(4)}%` : "—"}
-          hint={`${t(lang, "market.spread")} ${formatPrice((market.markPrice || market.lastPrice) - (market.indexPrice || market.lastPrice))}`}
+          label={t(lang, "market.spread")}
+          value={formatPrice(
+            (market.markPrice || market.lastPrice) - (market.indexPrice || market.lastPrice),
+          )}
+          hint={t(lang, "market.mark")}
         />
       </StatStrip>
+
+      {hasLighterFunding(funding) ? <FundingStrip funding={funding} lang={lang} /> : null}
 
       <PriceChart
         candles={chartCandles}
