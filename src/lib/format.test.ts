@@ -1,6 +1,12 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { publicAddressLabel, tokenIconCandidates } from "./format.ts";
+import { formatFundingPct, publicAddressLabel, tokenIconCandidates } from "./format.ts";
+
+test("formatFundingPct shows the native RH rate as a signed percent", () => {
+  assert.equal(formatFundingPct(0.000096), "+0.0096%");
+  assert.equal(formatFundingPct(-0.000008), "-0.0008%");
+  assert.equal(formatFundingPct(0), "0.0000%");
+});
 
 test("publicAddressLabel preserves the official leaderboard prefix", () => {
   assert.equal(
