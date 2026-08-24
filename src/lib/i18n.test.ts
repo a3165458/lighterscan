@@ -22,6 +22,11 @@ test("Chinese key resolves to Chinese chrome", () => {
   assert.equal(t("zh", "home.title"), "市场、账户与成交流");
   assert.equal(t("zh", "search.button"), "搜索账户…");
   assert.equal(t("zh", "search.close"), "关闭");
+  assert.equal(t("zh", "log.unavailable"), "Explorer 繁忙或正在限流，请稍后重试。");
+  assert.equal(
+    t("en", "log.unavailable"),
+    "Explorer is busy or rate-limiting this lookup. Try again shortly.",
+  );
   assert.equal(t("zh", "history.pnl"), "预估盈亏");
   assert.equal(t("zh", "funds.title"), "出入金");
   assert.equal(t("zh", "funds.deposit"), "入金");
