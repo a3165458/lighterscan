@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { unstable_noStore as noStore } from "next/cache";
 import { notFound } from "next/navigation";
 import { TokenIcon } from "@/components/token-icon";
 import { Crumbs, Stat, StatStrip } from "@/components/ui";
@@ -14,6 +13,11 @@ import { getRequestLang } from "@/lib/lang-server";
 import { getMarkets } from "@/lib/rh";
 
 export const revalidate = 60;
+export const dynamicParams = true;
+
+export function generateStaticParams() {
+  return [];
+}
 
 export async function generateMetadata({
   params,
@@ -38,8 +42,6 @@ export default async function LogPage({
     payload = await getLogByHash(hash, names);
   } catch (err) {
     if (classifyLogLookupError(err) === "not-found") notFound();
-    // Do not ISR-cache a soft-error body as the hash page.
-    noStore();
     return <LogUnavailable hash={hash} lang={lang} />;
   }
   const { trade, raw } = payload;
