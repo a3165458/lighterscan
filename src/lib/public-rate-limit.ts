@@ -2,7 +2,7 @@ import { createHmac } from "node:crypto";
 import { Ratelimit } from "@upstash/ratelimit";
 import { getSharedRedis, resolveSharedCacheBackend } from "./shared-kv.ts";
 
-export type PublicRateLimitScope = "history" | "search";
+export type PublicRateLimitScope = "history" | "search" | "logs";
 export type PublicRateLimitResult = {
   success: boolean;
   limit: number;
@@ -14,6 +14,7 @@ export type PublicRateLimitResult = {
 const limits: Record<PublicRateLimitScope, number> = {
   history: 60,
   search: 30,
+  logs: 60,
 };
 const limiters = new Map<PublicRateLimitScope, Ratelimit>();
 const localWindows = new Map<string, { count: number; reset: number }>();
@@ -21,6 +22,15 @@ const localWindows = new Map<string, { count: number; reset: number }>();
 /** After Upstash quota/network errors, skip Redis commands for a minute. */
 export const RATE_LIMIT_CIRCUIT_MS = 60_000;
 let circuitOpenUntil = 0;
+
+/** Next.js Link prefetch should not consume the public /logs budget. */
+export function isPrefetchRequest(headers: Headers): boolean {
+  const purpose = `${headers.get("purpose") ?? ""} ${headers.get("sec-purpose") ?? ""}`.toLowerCase();
+  return (
+    headers.get("next-router-prefetch") === "1" ||
+    purpose.includes("prefetch")
+  );
+}
 
 export function requestFingerprint(headers: Headers, secret: string): string {
   const forwarded =

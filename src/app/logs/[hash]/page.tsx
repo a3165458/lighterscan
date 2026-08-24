@@ -1,10 +1,15 @@
 import Link from "next/link";
+import { unstable_noStore as noStore } from "next/cache";
 import { notFound } from "next/navigation";
 import { TokenIcon } from "@/components/token-icon";
 import { Crumbs, Stat, StatStrip } from "@/components/ui";
 import { compactUsd, formatPrice, formatSize, formatTime } from "@/lib/format";
-import { officialLogUrl, getLogByHash } from "@/lib/history";
-import { t } from "@/lib/i18n";
+import {
+  classifyLogLookupError,
+  officialLogUrl,
+  getLogByHash,
+} from "@/lib/history";
+import { t, type Lang } from "@/lib/i18n";
 import { getRequestLang } from "@/lib/lang-server";
 import { getMarkets } from "@/lib/rh";
 
@@ -32,9 +37,10 @@ export default async function LogPage({
   try {
     payload = await getLogByHash(hash, names);
   } catch (err) {
-    const status = err && typeof err === "object" && "status" in err ? Number(err.status) : 0;
-    if (status === 404) notFound();
-    throw err;
+    if (classifyLogLookupError(err) === "not-found") notFound();
+    // Do not ISR-cache a soft-error body as the hash page.
+    noStore();
+    return <LogUnavailable hash={hash} lang={lang} />;
   }
   const { trade, raw } = payload;
   const official = officialLogUrl(hash, lang);
@@ -146,6 +152,40 @@ export default async function LogPage({
           </pre>
         </div>
       )}
+    </div>
+  );
+}
+
+function LogUnavailable({ hash, lang }: { hash: string; lang: Lang }) {
+  const official = officialLogUrl(hash, lang);
+  return (
+    <div className="max-w-4xl space-y-3.5">
+      <Crumbs
+        items={[
+          { label: t(lang, "nav.markets"), href: "/" },
+          { label: t(lang, "log.title") },
+        ]}
+      />
+      <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-2">
+        <div className="min-w-0">
+          <h1 className="page-title">{t(lang, "log.title")}</h1>
+          <p className="mt-1 break-all font-mono text-[11.5px] text-faint">{hash}</p>
+        </div>
+        <a href={official} target="_blank" rel="noreferrer" className="btn">
+          {t(lang, "log.official")}
+        </a>
+      </div>
+      <div className="panel p-3.5 text-[12.5px] text-muted">
+        <p>{t(lang, "log.unavailable")}</p>
+        <div className="mt-3 flex flex-wrap gap-2">
+          <Link href={`/logs/${hash}`} className="btn btn-accent">
+            {t(lang, "log.retry")}
+          </Link>
+          <a href={official} target="_blank" rel="noreferrer" className="btn">
+            {t(lang, "log.official")}
+          </a>
+        </div>
+      </div>
     </div>
   );
 }

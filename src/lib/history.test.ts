@@ -1,5 +1,12 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import {
+  classifyLogLookupError,
+  explorerLogFetchInit,
+  explorerStatusFromError,
+  LOG_BY_HASH_REVALIDATE_SECONDS,
+  readExplorerLogResponse,
+} from "./history-log.ts";
 import { describeExplorerLog, explorerLookupId, mapExplorerLog } from "./history-map.ts";
 import { historyPageOffset, visibleHistoryPages } from "./history-pages.ts";
 
@@ -85,4 +92,53 @@ test("visibleHistoryPages keeps a compact 1 2 3 window around the current page",
   assert.deepEqual(visibleHistoryPages(1, true), [1, 2, 3]);
   assert.deepEqual(visibleHistoryPages(4, true), [3, 4, 5]);
   assert.deepEqual(visibleHistoryPages(2, false), [1, 2]);
+});
+
+test("classifyLogLookupError treats only 404 as missing", () => {
+  assert.equal(
+    classifyLogLookupError(Object.assign(new Error("missing"), { status: 404 })),
+    "not-found",
+  );
+  assert.equal(
+    classifyLogLookupError(Object.assign(new Error("limited"), { status: 429 })),
+    "unavailable",
+  );
+  assert.equal(classifyLogLookupError(new Error("network")), "unavailable");
+  assert.equal(explorerStatusFromError(new Error("network")), 0);
+});
+
+test("explorer log fetch uses Next revalidate instead of no-store", () => {
+  const init = explorerLogFetchInit();
+  assert.equal("cache" in init ? init.cache : undefined, undefined);
+  assert.equal(
+    (init as { next?: { revalidate?: number } }).next?.revalidate,
+    LOG_BY_HASH_REVALIDATE_SECONDS,
+  );
+});
+
+test("readExplorerLogResponse tags upstream 429 so the page can soft-fail", async () => {
+  await assert.rejects(
+    () => readExplorerLogResponse(new Response("rate limited", { status: 429 })),
+    (err: unknown) => {
+      assert.equal(explorerStatusFromError(err), 429);
+      assert.equal(classifyLogLookupError(err), "unavailable");
+      return true;
+    },
+  );
+});
+
+test("readExplorerLogResponse still treats explorer 404 as not-found", async () => {
+  await assert.rejects(
+    () => readExplorerLogResponse(new Response("missing", { status: 404 })),
+    (err: unknown) => classifyLogLookupError(err) === "not-found",
+  );
+});
+
+test("readExplorerLogResponse parses a successful explorer payload", async () => {
+  const raw = await readExplorerLogResponse(
+    new Response(JSON.stringify({ hash: "abc", pubdata_type: "Unknown" }), {
+      status: 200,
+    }),
+  );
+  assert.equal(raw.hash, "abc");
 });

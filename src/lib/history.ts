@@ -2,6 +2,12 @@ import { aggregateVolumeFromFills } from "@/lib/account-stats";
 import { cached } from "@/lib/cache";
 import { RH_EXPLORER } from "@/lib/config";
 import {
+  explorerLogFetchInit,
+  LOG_BY_HASH_STALE_MS,
+  LOG_BY_HASH_TTL_MS,
+  readExplorerLogResponse,
+} from "@/lib/history-log";
+import {
   describeExplorerLog,
   mapExplorerLog,
   type ExplorerTrade,
@@ -13,6 +19,14 @@ import {
 } from "@/lib/liquidations";
 import { PUBLIC_POOL_ACCOUNT_INDEX } from "@/lib/tracker-metrics";
 import type { AccountLiveStats } from "@/lib/types";
+
+export {
+  classifyLogLookupError,
+  explorerStatusFromError,
+  LOG_BY_HASH_REVALIDATE_SECONDS,
+  LOG_BY_HASH_STALE_MS,
+  LOG_BY_HASH_TTL_MS,
+} from "@/lib/history-log";
 
 export type { ExplorerTrade, HistoryFill } from "@/lib/history-map";
 
@@ -105,23 +119,15 @@ export async function getLogByHash(
 ): Promise<{ raw: Record<string, unknown>; trade: ExplorerTrade | null }> {
   const clean = hash.trim();
   const path = `/logs/${encodeURIComponent(clean)}`;
-  const raw = await cached(`ex:${path}`, 15_000, async () => {
-    const res = await fetch(`${RH_EXPLORER}${path}`, {
-      headers: {
-        accept: "application/json",
-        "user-agent": "LighterScan/0.1 (+robinhood-lighter explorer)",
-      },
-      cache: "no-store",
-    });
-    const text = await res.text();
-    if (res.status === 404) {
-      throw Object.assign(new Error("log not found"), { status: 404 });
-    }
-    if (!res.ok) {
-      throw new Error(text.slice(0, 180) || `explorer ${res.status}`);
-    }
-    return JSON.parse(text) as Record<string, unknown>;
-  });
+  const raw = await cached(
+    `ex:${path}`,
+    LOG_BY_HASH_TTL_MS,
+    async () => {
+      const res = await fetch(`${RH_EXPLORER}${path}`, explorerLogFetchInit());
+      return readExplorerLogResponse(res);
+    },
+    LOG_BY_HASH_STALE_MS,
+  );
   return { raw, trade: describeExplorerLog(raw, marketNames) };
 }
 

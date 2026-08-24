@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  isPrefetchRequest,
   localPublicRateLimit,
   requestFingerprint,
   resetPublicRateLimitForTests,
@@ -38,6 +39,37 @@ test("standard Redis and a tripped circuit use the in-memory limiter", () => {
   assert.equal(shouldUseRemoteRateLimit("none", now, 0), false);
   assert.equal(shouldUseRemoteRateLimit("upstash", now, 0), true);
   assert.equal(shouldUseRemoteRateLimit("upstash", now, now + 1), false);
+});
+
+test("logs scope uses a 60-request window like history", () => {
+  resetPublicRateLimitForTests();
+  const now = Date.now();
+  const id = `logs-${now}`;
+  let last = localPublicRateLimit("logs", id, now);
+  for (let i = 1; i < 60; i += 1) {
+    last = localPublicRateLimit("logs", id, now);
+  }
+  assert.equal(last.success, true);
+  assert.equal(last.limit, 60);
+  assert.equal(last.remaining, 0);
+  const blocked = localPublicRateLimit("logs", id, now);
+  assert.equal(blocked.success, false);
+  resetPublicRateLimitForTests();
+});
+
+test("isPrefetchRequest ignores Next.js Link prefetch traffic", () => {
+  assert.equal(
+    isPrefetchRequest(new Headers({ "next-router-prefetch": "1" })),
+    true,
+  );
+  assert.equal(
+    isPrefetchRequest(new Headers({ purpose: "prefetch" })),
+    true,
+  );
+  assert.equal(
+    isPrefetchRequest(new Headers({ "user-agent": "curl" })),
+    false,
+  );
 });
 
 test("remote rate limit errors fall back to the in-memory window", async () => {
