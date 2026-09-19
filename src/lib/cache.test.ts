@@ -1,6 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { cached, memoryCacheSize } from "./cache.ts";
+import { cached, memoryCacheSize, resolveCachedOptions } from "./cache.ts";
+import {
+  resetSharedKvForTests,
+  setSharedKvForTests,
+} from "./shared-kv.ts";
 
 test("cached returns the producer value and reuses it inside TTL", async () => {
   let calls = 0;
@@ -52,4 +56,83 @@ test("cached coalesces concurrent lookups onto one producer", async () => {
   assert.equal(a, 11);
   assert.equal(b, 11);
   assert.equal(calls, 1);
+});
+
+test("resolveCachedOptions keeps the numeric staleMs overload", () => {
+  assert.deepEqual(resolveCachedOptions(7_000), {
+    staleMs: 7_000,
+    shared: true,
+  });
+  assert.deepEqual(resolveCachedOptions({ staleMs: 9_000, shared: false }), {
+    staleMs: 9_000,
+    shared: false,
+  });
+  assert.deepEqual(resolveCachedOptions(), {
+    staleMs: 10 * 60_000,
+    shared: true,
+  });
+});
+
+test("cached with shared:false never reads or writes Redis/KV", async () => {
+  let gets = 0;
+  let sets = 0;
+  setSharedKvForTests({
+    async get() {
+      gets += 1;
+      return "from-kv" as never;
+    },
+    async set() {
+      sets += 1;
+    },
+  });
+  const key = `t-${Date.now()}-local-only`;
+  const value = await cached(key, 60_000, async () => "produced", {
+    shared: false,
+  });
+  assert.equal(value, "produced");
+  assert.equal(gets, 0);
+  assert.equal(sets, 0);
+  resetSharedKvForTests();
+});
+
+test("cached with shared:true still write-through to Redis/KV", async () => {
+  let gets = 0;
+  let sets = 0;
+  const written: unknown[] = [];
+  setSharedKvForTests({
+    async get() {
+      gets += 1;
+      return null;
+    },
+    async set(_key, value) {
+      sets += 1;
+      written.push(value);
+    },
+  });
+  const key = `t-${Date.now()}-shared`;
+  const value = await cached(key, 60_000, async () => "produced");
+  assert.equal(value, "produced");
+  assert.equal(gets, 1);
+  assert.equal(sets, 1);
+  assert.deepEqual(written, ["produced"]);
+  resetSharedKvForTests();
+});
+
+test("cached shared:false still serves stale after an upstream failure", async () => {
+  const key = `t-${Date.now()}-local-stale`;
+  const first = await cached(key, 1, async () => "fresh", {
+    staleMs: 60_000,
+    shared: false,
+  });
+  assert.equal(first, "fresh");
+  await new Promise((resolve) => setTimeout(resolve, 5));
+  const stale = await cached(
+    key,
+    1,
+    async () => {
+      throw new Error("upstream 429");
+    },
+    { staleMs: 60_000, shared: false },
+  );
+  assert.equal(stale, "fresh");
 });
