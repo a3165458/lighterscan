@@ -35,6 +35,7 @@ export default async function LogPage({
 }) {
   const { hash } = await params;
   const lang = await getRequestLang();
+  // Both helpers must stay ISR-safe: no Upstash/KV no-store fetch on this path.
   const markets = await getMarkets().catch(() => []);
   const names = Object.fromEntries(markets.map((m) => [m.marketId, m.symbol]));
   let payload;
