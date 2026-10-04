@@ -1,10 +1,11 @@
 import { aggregateVolumeFromFills } from "@/lib/account-stats";
-import { cached } from "@/lib/cache";
+import { cached, ISR_PAGE_CACHE } from "@/lib/cache";
 import { RH_EXPLORER } from "@/lib/config";
 import {
+  explorerIsrFetchInit,
+  explorerLiveFetchInit,
   explorerLogFetchInit,
   LOG_BY_HASH_CACHE,
-  LOG_BY_HASH_STALE_MS,
   LOG_BY_HASH_TTL_MS,
   readExplorerLogResponse,
 } from "@/lib/history-log";
@@ -43,33 +44,68 @@ export type HistoryPage = {
 
 export { explorerLookupId } from "@/lib/history-map";
 
+const EXPLORER_TTL_MS = 8_000;
+
+export type ExplorerReadOptions = {
+  /** ISR/static RSC: Next Data Cache, no Upstash/KV write-through. */
+  isr?: boolean;
+};
+
+async function fetchExplorer(
+  path: string,
+  ttlMs: number,
+  isr: boolean,
+): Promise<unknown> {
+  const res = await fetch(
+    `${RH_EXPLORER}${path}`,
+    isr ? explorerIsrFetchInit(ttlMs) : explorerLiveFetchInit(),
+  );
+  const text = await res.text();
+  if (!res.ok) {
+    throw new Error(text.slice(0, 180) || `explorer ${res.status}`);
+  }
+  if (!text) return [];
+  try {
+    return JSON.parse(text) as unknown;
+  } catch {
+    throw new Error("invalid explorer payload");
+  }
+}
+
+async function cachedExplorerArray(
+  path: string,
+  ttlMs: number,
+  isr: boolean,
+): Promise<Record<string, unknown>[]> {
+  return cached(
+    `ex:${path}`,
+    ttlMs,
+    async () => {
+      const body = await fetchExplorer(path, ttlMs, isr);
+      if (!Array.isArray(body)) {
+        throw new Error("unexpected explorer payload");
+      }
+      return body as Record<string, unknown>[];
+    },
+    isr ? ISR_PAGE_CACHE : undefined,
+  );
+}
+
 export async function getAccountTradeHistory(
   accountOrAddress: string,
   offset = 0,
   limit = 40,
   selfIndexes: Array<string | number> = [accountOrAddress],
   marketNames: Record<number, string> = {},
+  options?: ExplorerReadOptions,
 ): Promise<HistoryPage> {
   const safeLimit = Math.min(Math.max(limit, 1), 100);
   const path = `/accounts/${encodeURIComponent(accountOrAddress)}/logs?limit=${safeLimit}&offset=${offset}&pub_data_type=Trade&pub_data_type=TradeWithFunding&pub_data_type=LiquidationTrade&pub_data_type=LiquidationTradeWithFunding`;
-  const rows = await cached(`ex:${path}`, 8_000, async () => {
-    const res = await fetch(`${RH_EXPLORER}${path}`, {
-      headers: {
-        accept: "application/json",
-        "user-agent": "LighterScan/0.1 (+robinhood-lighter explorer)",
-      },
-      cache: "no-store",
-    });
-    const text = await res.text();
-    if (!res.ok) {
-      throw new Error(text.slice(0, 180) || `explorer ${res.status}`);
-    }
-    const body = text ? JSON.parse(text) : [];
-    if (!Array.isArray(body)) {
-      throw new Error("unexpected explorer payload");
-    }
-    return body as Record<string, unknown>[];
-  });
+  const rows = await cachedExplorerArray(
+    path,
+    EXPLORER_TTL_MS,
+    options?.isr === true,
+  );
 
   const fills = rows
     .map((row) => mapExplorerLog(row, selfIndexes, marketNames))
@@ -85,10 +121,15 @@ export async function getAccountTradeHistory(
 export async function getAccountVolumeStats(
   accountOrAddress: string,
   selfIndexes: Array<string | number> = [accountOrAddress],
-  now = Date.now(),
+  nowOrOptions: number | ExplorerReadOptions = Date.now(),
+  maybeOptions?: ExplorerReadOptions,
 ): Promise<{ stats: AccountLiveStats; complete: boolean; sampled: number }> {
+  const now = typeof nowOrOptions === "number" ? nowOrOptions : Date.now();
+  const options =
+    typeof nowOrOptions === "number" ? maybeOptions : nowOrOptions;
   const selves = selfIndexes.map(String).join(",");
-  return cached(`ex-vol:${accountOrAddress}:${selves}`, 8_000, async () => {
+  const isr = options?.isr === true;
+  return cached(`ex-vol:${accountOrAddress}:${selves}`, EXPLORER_TTL_MS, async () => {
     const fills: HistoryFill[] = [];
     let offset = 0;
     let complete = true;
@@ -98,6 +139,8 @@ export async function getAccountVolumeStats(
         offset,
         ACCOUNT_VOLUME_PAGE_SIZE,
         selfIndexes,
+        {},
+        options,
       );
       fills.push(...result.fills);
       if (!result.hasMore) {
@@ -112,7 +155,7 @@ export async function getAccountVolumeStats(
       complete,
       sampled: fills.length,
     };
-  });
+  }, isr ? ISR_PAGE_CACHE : undefined);
 }
 
 export async function getLogByHash(
@@ -137,21 +180,14 @@ export function officialLogUrl(hash: string, locale: "zh" | "en" = "zh"): string
   return `https://robinhoodchain.lighter.xyz/explorer/logs/${hash}?locale=${locale}`;
 }
 
+/** Board ISR only. Public `/api/history` stays on `explorerLiveFetchInit`. */
 async function explorerGet<T>(path: string, ttlMs: number): Promise<T> {
-  return cached(`ex:${path}`, ttlMs, async () => {
-    const res = await fetch(`${RH_EXPLORER}${path}`, {
-      headers: {
-        accept: "application/json",
-        "user-agent": "LighterScan/0.1 (+robinhood-lighter explorer)",
-      },
-      cache: "no-store",
-    });
-    const text = await res.text();
-    if (!res.ok) {
-      throw new Error(text.slice(0, 180) || `explorer ${res.status}`);
-    }
-    return (text ? JSON.parse(text) : null) as T;
-  });
+  return cached(
+    `ex:${path}`,
+    ttlMs,
+    async () => (await fetchExplorer(path, ttlMs, true)) as T,
+    ISR_PAGE_CACHE,
+  );
 }
 
 const LIQUIDATION_LOG_TYPES = [

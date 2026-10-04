@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   classifyLogLookupError,
+  explorerIsrFetchInit,
+  explorerLiveFetchInit,
   explorerLogFetchInit,
   explorerStatusFromError,
   LOG_BY_HASH_CACHE,
@@ -107,6 +109,18 @@ test("classifyLogLookupError treats only 404 as missing", () => {
   );
   assert.equal(classifyLogLookupError(new Error("network")), "unavailable");
   assert.equal(explorerStatusFromError(new Error("network")), 0);
+});
+
+test("explorer live fetch stays no-store for public APIs", () => {
+  const init = explorerLiveFetchInit();
+  assert.equal(init.cache, "no-store");
+  assert.equal("next" in init, false);
+});
+
+test("explorer ISR fetch uses Next revalidate instead of no-store", () => {
+  const init = explorerIsrFetchInit(8_000);
+  assert.equal("cache" in init, false);
+  assert.equal(init.next.revalidate, 8);
 });
 
 test("explorer log fetch uses Next revalidate instead of no-store", () => {

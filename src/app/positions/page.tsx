@@ -7,7 +7,6 @@ import { compactUsd, formatPrice, formatSize, pnlClass } from "@/lib/format";
 import { filterByMarket, perpChoices, resolveMarketChoice } from "@/lib/market-filter";
 import { loadPublicPositions } from "@/lib/public-boards";
 import { getMarkets } from "@/lib/rh";
-import { readPublicRealtimeSnapshot } from "@/lib/shared-cache";
 
 export const revalidate = 60;
 
@@ -18,19 +17,19 @@ export default async function PositionsPage({
 }: {
   searchParams: Promise<{ market?: string }>;
 }) {
-  const [{ market: rawMarket }, lang, snapshot, markets] = await Promise.all([
+  const [{ market: rawMarket }, lang, markets] = await Promise.all([
     searchParams,
     getRequestLang(),
-    readPublicRealtimeSnapshot(),
     getMarkets().catch(() => []),
   ]);
   const choices = perpChoices(markets);
   const selected = resolveMarketChoice(rawMarket, choices);
-  let rows = snapshot?.positions ?? [];
-  if (rows.length === 0) {
-    rows = await loadPublicPositions(markets).catch(() => []);
-  }
-  rows = filterByMarket(rows, selected, (row) => row);
+  // ISR: account reads go through rhGet (`shared: false`), not the Redis snapshot.
+  const rows = filterByMarket(
+    await loadPublicPositions(markets).catch(() => []),
+    selected,
+    (row) => row,
+  );
 
   return (
     <div className="space-y-3.5">

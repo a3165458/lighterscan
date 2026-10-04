@@ -5,17 +5,6 @@ import { t } from "@/lib/i18n";
 import { getRequestLang } from "@/lib/lang-server";
 import { perpChoices, resolveMarketChoice } from "@/lib/market-filter";
 import { getMarkets, getRecentTrades } from "@/lib/rh";
-import {
-  readPublicRealtimeSnapshot,
-  readTrackerLedger,
-} from "@/lib/shared-cache";
-import {
-  ALL_TRACKER_BUCKET,
-  applyEquitiesToLedger,
-  applyTradesToLedger,
-  emptyTrackerLedger,
-  ledgerBucketToSample,
-} from "@/lib/tracker-ledger";
 import { freezeTrackedSample } from "@/lib/tracker-metrics";
 import { getTrackedMarkets, type TrackedMarket } from "@/lib/trackers";
 import type { Trade } from "@/lib/types";
@@ -45,46 +34,34 @@ export default async function TrackersPage({
 }: {
   searchParams: Promise<{ market?: string }>;
 }) {
-  const [{ market: rawMarket }, lang, markets, defaultTracked, snapshot, stored] =
-    await Promise.all([
-      searchParams,
-      getRequestLang(),
-      getMarkets().catch(() => []),
-      getTrackedMarkets().catch(() => [] as TrackedMarket[]),
-      readPublicRealtimeSnapshot(),
-      readTrackerLedger(),
-    ]);
+  const [{ market: rawMarket }, lang, markets, defaultTracked] = await Promise.all([
+    searchParams,
+    getRequestLang(),
+    getMarkets().catch(() => []),
+    getTrackedMarkets().catch(() => [] as TrackedMarket[]),
+  ]);
   const choices = perpChoices(markets);
   const selected = resolveMarketChoice(rawMarket, choices);
-  const extraTrades = selected
-    ? await getRecentTrades(selected.marketId, 100, {
-        symbol: selected.symbol,
-      }).catch(() => [])
-    : [];
-  const source = mergeTrades(snapshot?.trades ?? [], extraTrades).filter((trade) =>
+  // ISR: recent trades via rhGet. The Redis ledger is collector-only.
+  const seeds = selected
+    ? [{ marketId: selected.marketId, symbol: selected.symbol }]
+    : defaultTracked;
+  const lists = await Promise.all(
+    seeds.map((market) =>
+      getRecentTrades(market.marketId, 100, { symbol: market.symbol }).catch(
+        () => [],
+      ),
+    ),
+  );
+  const source = mergeTrades(...lists).filter((trade) =>
     selected
-      ? trade.marketId === selected.marketId ||
-        trade.symbol === selected.symbol
+      ? trade.marketId === selected.marketId || trade.symbol === selected.symbol
       : true,
   );
-  const equities = Object.fromEntries(
-    (snapshot?.trackers.whales ?? []).map((row) => [row.accountId, row.accountValue]),
+  const sample = freezeTrackedSample(
+    source,
+    selected ? [selected.symbol] : defaultTracked.map((market) => market.symbol),
   );
-  const ledger = stored ?? emptyTrackerLedger();
-  applyTradesToLedger(ledger, source);
-  applyEquitiesToLedger(ledger, equities);
-  const bucketKey = selected?.symbol ?? ALL_TRACKER_BUCKET;
-  const cumulative = ledgerBucketToSample(ledger, bucketKey);
-  const sample =
-    cumulative.sampledTrades > 0
-      ? cumulative
-      : freezeTrackedSample(
-          source,
-          selected
-            ? [selected.symbol]
-            : defaultTracked.map((market) => market.symbol),
-          equities,
-        );
 
   return (
     <div className="space-y-3.5">

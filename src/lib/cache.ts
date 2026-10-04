@@ -20,6 +20,16 @@ export type CachedOptions = {
 };
 
 const DEFAULT_STALE_MS = 10 * 60_000;
+
+/**
+ * ISR/static RSC cache: in-process memory plus the caller's Next Data Cache.
+ * `shared: false` skips Upstash/Redis so a page render never POSTs `/pipeline`.
+ */
+export const ISR_PAGE_CACHE = {
+  staleMs: DEFAULT_STALE_MS,
+  shared: false,
+} as const;
+
 const store = new Map<string, Entry<unknown>>();
 const REDIS_PREFIX = "lighterscan:cache:v1:";
 
