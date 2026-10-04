@@ -3,6 +3,7 @@ import { cached } from "@/lib/cache";
 import { RH_EXPLORER } from "@/lib/config";
 import {
   explorerLogFetchInit,
+  LOG_BY_HASH_CACHE,
   LOG_BY_HASH_STALE_MS,
   LOG_BY_HASH_TTL_MS,
   readExplorerLogResponse,
@@ -23,6 +24,7 @@ import type { AccountLiveStats } from "@/lib/types";
 export {
   classifyLogLookupError,
   explorerStatusFromError,
+  LOG_BY_HASH_CACHE,
   LOG_BY_HASH_REVALIDATE_SECONDS,
   LOG_BY_HASH_STALE_MS,
   LOG_BY_HASH_TTL_MS,
@@ -126,7 +128,7 @@ export async function getLogByHash(
       const res = await fetch(`${RH_EXPLORER}${path}`, explorerLogFetchInit());
       return readExplorerLogResponse(res);
     },
-    LOG_BY_HASH_STALE_MS,
+    LOG_BY_HASH_CACHE,
   );
   return { raw, trade: describeExplorerLog(raw, marketNames) };
 }

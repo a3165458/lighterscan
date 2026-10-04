@@ -4,7 +4,9 @@ import {
   classifyLogLookupError,
   explorerLogFetchInit,
   explorerStatusFromError,
+  LOG_BY_HASH_CACHE,
   LOG_BY_HASH_REVALIDATE_SECONDS,
+  LOG_BY_HASH_STALE_MS,
   readExplorerLogResponse,
 } from "./history-log.ts";
 import { describeExplorerLog, explorerLookupId, mapExplorerLog } from "./history-map.ts";
@@ -114,6 +116,11 @@ test("explorer log fetch uses Next revalidate instead of no-store", () => {
     (init as { next?: { revalidate?: number } }).next?.revalidate,
     LOG_BY_HASH_REVALIDATE_SECONDS,
   );
+});
+
+test("log-by-hash cache skips Redis/KV so ISR cannot see a no-store pipeline", () => {
+  assert.equal(LOG_BY_HASH_CACHE.shared, false);
+  assert.equal(LOG_BY_HASH_CACHE.staleMs, LOG_BY_HASH_STALE_MS);
 });
 
 test("readExplorerLogResponse tags upstream 429 so the page can soft-fail", async () => {

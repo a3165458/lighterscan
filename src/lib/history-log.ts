@@ -1,9 +1,17 @@
-/** Immutable explorer logs: keep Redis/memory hot for a day. */
+/** Immutable explorer logs: keep the in-process copy hot for a day. */
 export const LOG_BY_HASH_TTL_MS = 24 * 60 * 60 * 1000;
 /** Serve in-process stale copies across upstream 429/5xx after TTL. */
 export const LOG_BY_HASH_STALE_MS = 7 * 24 * 60 * 60 * 1000;
 /** Align Next Data Cache with `export const revalidate` on /logs/[hash]. */
 export const LOG_BY_HASH_REVALIDATE_SECONDS = 60;
+/**
+ * ISR pages cannot touch Upstash/KV: REST `set`/`pipeline` uses
+ * `cache: "no-store"` and dynamizes `/logs/[hash]` at runtime.
+ */
+export const LOG_BY_HASH_CACHE = {
+  staleMs: LOG_BY_HASH_STALE_MS,
+  shared: false,
+} as const;
 
 export function explorerStatusFromError(err: unknown): number {
   if (err && typeof err === "object" && "status" in err) {

@@ -70,6 +70,9 @@ async function rhGet<T>(
   ttlMs: number,
   init?: RequestInit,
 ): Promise<T> {
+  // Next Data Cache (`next.revalidate`) is the shared layer. Redis/KV
+  // write-through uses Upstash REST `no-store` and would dynamize ISR pages
+  // such as `/logs/[hash]` via getMarkets() → getOverview().
   return cached(`rh:${path}`, ttlMs, async () => {
     let lastErr: Error = new RhError("RH API error");
     const revalidate = Math.max(1, Math.ceil(ttlMs / 1000));
@@ -112,7 +115,7 @@ async function rhGet<T>(
       throw lastErr;
     }
     throw lastErr;
-  });
+  }, { shared: false });
 }
 
 function asMarketType(value: unknown): "perp" | "spot" {
