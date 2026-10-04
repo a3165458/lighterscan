@@ -79,17 +79,13 @@ export default async function AccountPage({
       markets.map((market) => [market.marketId, market.symbol]),
     );
     const [history, funds, volume] = await Promise.all([
-      getAccountTradeHistory(
-        id,
-        0,
-        40,
-        [accountIndex],
-        marketNames,
-      ).catch(() => ({ fills: [], nextOffset: 0, hasMore: false })),
-      getAccountFundHistory(id, 0, 40, [accountIndex]).catch(() =>
+      getAccountTradeHistory(id, 0, 40, [accountIndex], marketNames, {
+        isr: true,
+      }).catch(() => ({ fills: [], nextOffset: 0, hasMore: false })),
+      getAccountFundHistory(id, 0, 40, [accountIndex], { isr: true }).catch(() =>
         emptyFundPage(),
       ),
-      getAccountVolumeStats(id, [accountIndex]).catch(() => null),
+      getAccountVolumeStats(id, [accountIndex], { isr: true }).catch(() => null),
     ]);
     return (
       <div className="space-y-3.5">
@@ -135,14 +131,14 @@ export default async function AccountPage({
       40,
       [primary.index],
       marketNames,
+      { isr: true },
     ).catch(() => ({ fills: [], nextOffset: 0, hasMore: false })),
-    getAccountFundHistory(
-      String(primary.index),
-      0,
-      40,
-      [primary.index],
-    ).catch(() => emptyFundPage()),
-    getAccountVolumeStats(String(primary.index), [primary.index]).catch(() => null),
+    getAccountFundHistory(String(primary.index), 0, 40, [primary.index], {
+      isr: true,
+    }).catch(() => emptyFundPage()),
+    getAccountVolumeStats(String(primary.index), [primary.index], {
+      isr: true,
+    }).catch(() => null),
   ]);
   const estRealized = sumRealized(estimateFillPnls(history.fills));
   const liquidations = history.fills.filter((fill) => /liquidat/i.test(fill.kind));

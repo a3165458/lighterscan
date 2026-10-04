@@ -66,7 +66,9 @@ export default async function AddressPage({
   const [historyPages, fundPages] = await Promise.all([
     Promise.all(
       lookupIds.map((id) =>
-        getAccountTradeHistory(String(id), 0, 40, [id], marketNames).catch(() => ({
+        getAccountTradeHistory(String(id), 0, 40, [id], marketNames, {
+          isr: true,
+        }).catch(() => ({
           fills: [],
           nextOffset: 0,
           hasMore: false,
@@ -75,7 +77,9 @@ export default async function AddressPage({
     ),
     Promise.all(
       lookupIds.map((id) =>
-        getAccountFundHistory(String(id), 0, 40, [id]).catch(() => emptyFundPage()),
+        getAccountFundHistory(String(id), 0, 40, [id], { isr: true }).catch(() =>
+          emptyFundPage(),
+        ),
       ),
     ),
   ]);

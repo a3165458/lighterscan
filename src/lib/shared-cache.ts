@@ -69,6 +69,11 @@ export function expireSnapshotMemoForTests(): void {
   if (snapshotMemo) snapshotMemo.exp = 0;
 }
 
+/**
+ * Collector and dynamic routes only (`/api/live`, `/api/ticker`, `/api/health`).
+ * ISR pages must not call this: the Upstash client POSTs `/pipeline` with
+ * `cache: "no-store"` and Next.js turns the page dynamic at runtime.
+ */
 export async function readPublicRealtimeSnapshot(): Promise<PublicRealtimeSnapshot | null> {
   const now = Date.now();
   if (snapshotMemo && snapshotMemo.exp > now) return snapshotMemo.value;
@@ -112,6 +117,7 @@ export async function writePublicRealtimeSnapshot(
   snapshotMemo = { value: snapshot, exp: Date.now() + SNAPSHOT_MEMO_MS };
 }
 
+/** Collector / dynamic callers only. See `readPublicRealtimeSnapshot`. */
 export async function readHourlyStats(): Promise<HourlyStat[]> {
   try {
     const kv = getSharedKv();
@@ -151,6 +157,7 @@ export async function writeHourlyStat(stat: HourlyStat): Promise<void> {
   }
 }
 
+/** Collector / dynamic callers only. See `readPublicRealtimeSnapshot`. */
 export async function readTrackerLedger(): Promise<TrackerLedger | null> {
   try {
     const kv = getSharedKv();

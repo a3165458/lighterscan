@@ -4,11 +4,9 @@ import { PageHeader } from "@/components/ui";
 import { t } from "@/lib/i18n";
 import { getRequestLang } from "@/lib/lang-server";
 import { compactUsd, formatPrice, formatTime } from "@/lib/format";
-import { liquidationsFromTrades, mergeLiquidationRows } from "@/lib/liquidations";
 import { filterByMarket, perpChoices, resolveMarketChoice } from "@/lib/market-filter";
 import { loadPublicLiquidations } from "@/lib/public-boards";
 import { getMarkets } from "@/lib/rh";
-import { readPublicRealtimeSnapshot } from "@/lib/shared-cache";
 
 export const revalidate = 60;
 
@@ -19,22 +17,19 @@ export default async function LiquidationsPage({
 }: {
   searchParams: Promise<{ market?: string }>;
 }) {
-  const [{ market: rawMarket }, lang, snapshot, markets] = await Promise.all([
+  const [{ market: rawMarket }, lang, markets] = await Promise.all([
     searchParams,
     getRequestLang(),
-    readPublicRealtimeSnapshot(),
     getMarkets().catch(() => []),
   ]);
   const choices = perpChoices(markets);
   const selected = resolveMarketChoice(rawMarket, choices);
-  let rows = mergeLiquidationRows(
-    snapshot?.liquidations,
-    snapshot ? liquidationsFromTrades(snapshot.trades) : [],
+  // ISR: explorer liquidations via Next Data Cache. The Redis snapshot is dynamic-only.
+  const rows = filterByMarket(
+    await loadPublicLiquidations(markets).catch(() => []),
+    selected,
+    (row) => row,
   );
-  if (rows.length === 0) {
-    rows = await loadPublicLiquidations(markets).catch(() => []);
-  }
-  rows = filterByMarket(rows, selected, (row) => row);
   const total = rows.reduce((sum, row) => sum + row.usdAmount, 0);
 
   return (

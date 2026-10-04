@@ -31,16 +31,33 @@ function explorerFailure(message: string, status: number): Error {
   return Object.assign(new Error(message), { status });
 }
 
-export function explorerLogFetchInit(): RequestInit & {
+const EXPLORER_HEADERS = {
+  accept: "application/json",
+  "user-agent": "LighterScan/0.1 (+robinhood-lighter explorer)",
+} as const;
+
+/** Public API producers stay uncached at the fetch layer. */
+export function explorerLiveFetchInit(): RequestInit {
+  return {
+    headers: { ...EXPLORER_HEADERS },
+    cache: "no-store",
+  };
+}
+
+/** ISR pages must use Next Data Cache. `cache: "no-store"` dynamizes the page. */
+export function explorerIsrFetchInit(ttlMs: number): RequestInit & {
   next: { revalidate: number };
 } {
   return {
-    headers: {
-      accept: "application/json",
-      "user-agent": "LighterScan/0.1 (+robinhood-lighter explorer)",
-    },
-    next: { revalidate: LOG_BY_HASH_REVALIDATE_SECONDS },
+    headers: { ...EXPLORER_HEADERS },
+    next: { revalidate: Math.max(1, Math.ceil(ttlMs / 1000)) },
   };
+}
+
+export function explorerLogFetchInit(): RequestInit & {
+  next: { revalidate: number };
+} {
+  return explorerIsrFetchInit(LOG_BY_HASH_REVALIDATE_SECONDS * 1000);
 }
 
 export async function readExplorerLogResponse(

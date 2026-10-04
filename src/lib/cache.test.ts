@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { cached, memoryCacheSize, resolveCachedOptions } from "./cache.ts";
+import { cached, ISR_PAGE_CACHE, memoryCacheSize, resolveCachedOptions } from "./cache.ts";
 import {
   resetSharedKvForTests,
   setSharedKvForTests,
@@ -56,6 +56,14 @@ test("cached coalesces concurrent lookups onto one producer", async () => {
   assert.equal(a, 11);
   assert.equal(b, 11);
   assert.equal(calls, 1);
+});
+
+test("ISR page cache opts out of shared KV", () => {
+  assert.equal(ISR_PAGE_CACHE.shared, false);
+  assert.deepEqual(resolveCachedOptions(ISR_PAGE_CACHE), {
+    staleMs: 10 * 60_000,
+    shared: false,
+  });
 });
 
 test("resolveCachedOptions keeps the numeric staleMs overload", () => {

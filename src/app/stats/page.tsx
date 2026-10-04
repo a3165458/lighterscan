@@ -8,7 +8,6 @@ import { filterByMarket, perpChoices, resolveMarketChoice } from "@/lib/market-f
 import { loadPublicHourlyVolume, loadPublicLiquidations } from "@/lib/public-boards";
 import { getCandles, getOverview } from "@/lib/rh";
 import { hourlyQuoteVolume } from "@/lib/series";
-import { readHourlyStats, readPublicRealtimeSnapshot } from "@/lib/shared-cache";
 
 export const revalidate = 60;
 
@@ -19,49 +18,33 @@ export default async function StatsPage({
 }: {
   searchParams: Promise<{ market?: string }>;
 }) {
-  const [{ market: rawMarket }, lang, overview, hours, snapshot] = await Promise.all([
+  const [{ market: rawMarket }, lang, overview] = await Promise.all([
     searchParams,
     getRequestLang(),
     getOverview(),
-    readHourlyStats(),
-    readPublicRealtimeSnapshot(),
   ]);
   const choices = perpChoices(overview.markets);
   const selected = resolveMarketChoice(rawMarket, choices);
   const selectedMarket = selected
     ? overview.markets.find((market) => market.marketId === selected.marketId)
     : null;
-  const candleHours = selected
-    ? hourlyQuoteVolume(
-        await getCandles(selected.marketId, "1h", 24).catch(() => []),
-      )
-    : await loadPublicHourlyVolume(overview.markets).catch(() => []);
-  const curve =
-    candleHours.length >= 2
-      ? candleHours
-      : selected
-        ? candleHours
-        : hours.map((row) => ({ t: row.t, volume: row.volume }));
+  // ISR: candles and explorer rows only. Hourly Redis stats stay off this render.
+  const [candleHours, liquidationRows] = await Promise.all([
+    selected
+      ? getCandles(selected.marketId, "1h", 24)
+          .then(hourlyQuoteVolume)
+          .catch(() => [])
+      : loadPublicHourlyVolume(overview.markets).catch(() => []),
+    loadPublicLiquidations(overview.markets).catch(() => []),
+  ]);
+  const curve = candleHours;
   const values = curve.map((row) => row.volume);
   const max = Math.max(...values, 1);
-  const liveLiqs = filterByMarket(
-    snapshot?.liquidations ?? [],
+  const liquidationNotional = filterByMarket(
+    liquidationRows,
     selected,
     (row) => row,
-  );
-  let liquidationNotional = selected
-    ? liveLiqs.reduce((sum, row) => sum + row.usdAmount, 0)
-    : hours.at(-1)?.liquidations ?? 0;
-  if (!liquidationNotional) {
-    const fallback = liveLiqs.length
-      ? liveLiqs
-      : filterByMarket(
-          await loadPublicLiquidations(overview.markets).catch(() => []),
-          selected,
-          (row) => row,
-        );
-    liquidationNotional = fallback.reduce((sum, row) => sum + row.usdAmount, 0);
-  }
+  ).reduce((sum, row) => sum + row.usdAmount, 0);
   const volume = selectedMarket?.volume24h ?? overview.totals.dailyVolume;
   const oi = selectedMarket
     ? openInterestUsd(

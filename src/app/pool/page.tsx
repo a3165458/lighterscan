@@ -12,8 +12,8 @@ import { compactUsd, formatPrice, formatTime } from "@/lib/format";
 import { t } from "@/lib/i18n";
 import { getRequestLang } from "@/lib/lang-server";
 import { positionLabels } from "@/lib/position-labels";
-import { getAccountByIndex, RhError } from "@/lib/rh";
-import { readPublicRealtimeSnapshot } from "@/lib/shared-cache";
+import { loadPublicPoolTrades } from "@/lib/public-boards";
+import { getAccountByIndex, getMarkets, RhError } from "@/lib/rh";
 import { PUBLIC_POOL_ACCOUNT_INDEX } from "@/lib/tracker-metrics";
 
 export const revalidate = 60;
@@ -22,18 +22,16 @@ export const metadata = { title: "Public Pool" };
 
 export default async function PoolPage() {
   const lang = await getRequestLang();
-  const snapshot = await readPublicRealtimeSnapshot();
+  // ISR: pool fills come from the explorer via Next Data Cache, not shared KV.
+  const markets = await getMarkets().catch(() => []);
+  const names = Object.fromEntries(markets.map((market) => [market.marketId, market.symbol]));
   let bundle = null;
   try {
     bundle = await getAccountByIndex(PUBLIC_POOL_ACCOUNT_INDEX);
   } catch (error) {
     if (!(error instanceof RhError && error.status === 404)) throw error;
   }
-  const trades = (snapshot?.trades ?? []).filter(
-    (trade) =>
-      trade.askAccountId === PUBLIC_POOL_ACCOUNT_INDEX ||
-      trade.bidAccountId === PUBLIC_POOL_ACCOUNT_INDEX,
-  );
+  const trades = await loadPublicPoolTrades(names);
 
   const upnl = bundle
     ? bundle.primary.positions.reduce((sum, row) => sum + row.unrealizedPnl, 0)

@@ -1,5 +1,6 @@
-import { cached } from "@/lib/cache";
-import { getRecentExplorerLiquidations } from "@/lib/history";
+import { cached, ISR_PAGE_CACHE } from "@/lib/cache";
+import { getAccountExplorerLogs, getRecentExplorerLiquidations } from "@/lib/history";
+import { describeExplorerLog, type ExplorerTrade } from "@/lib/history-map";
 import {
   mergeLiquidationRows,
   type LiquidationRow,
@@ -16,7 +17,7 @@ import {
   isPublicUserAccount,
   PUBLIC_POOL_ACCOUNT_INDEX,
 } from "@/lib/tracker-metrics";
-import type { AccountPosition, Market } from "@/lib/types";
+import type { AccountPosition, Market, Trade } from "@/lib/types";
 
 const POSITION_MARKET_LIMIT = 4;
 const POSITION_ACCOUNT_LIMIT = 6;
@@ -32,16 +33,76 @@ function marketNames(markets: Market[]): Record<number, string> {
   return Object.fromEntries(markets.map((market) => [market.marketId, market.symbol]));
 }
 
+const POOL_TRADE_TYPES = [
+  "Trade",
+  "TradeWithFunding",
+  "LiquidationTrade",
+  "LiquidationTradeWithFunding",
+];
+
+function tapeTradeFromExplorer(trade: ExplorerTrade): Trade {
+  const taker = Number(trade.taker);
+  const maker = Number(trade.maker);
+  const askAccountId = trade.isTakerAsk ? taker : maker;
+  const bidAccountId = trade.isTakerAsk ? maker : taker;
+  return {
+    tradeId: trade.hash,
+    txHash: trade.hash,
+    type: trade.kind,
+    marketId: trade.marketId,
+    symbol: trade.symbol,
+    size: trade.size,
+    price: trade.price,
+    usdAmount: trade.usdAmount,
+    askAccountId: Number.isFinite(askAccountId) ? askAccountId : 0,
+    bidAccountId: Number.isFinite(bidAccountId) ? bidAccountId : 0,
+    isMakerAsk: !trade.isTakerAsk,
+    timestamp: trade.timestamp,
+    takerIsAsk: trade.isTakerAsk,
+  };
+}
+
+/** Pool fills for `/pool`. Explorer + Next Data Cache; never shared KV. */
+export async function loadPublicPoolTrades(
+  marketNamesById: Record<number, string> = {},
+): Promise<Trade[]> {
+  return cached(
+    "public:pool-trades",
+    20_000,
+    async () => {
+      const logs = await getAccountExplorerLogs(
+        PUBLIC_POOL_ACCOUNT_INDEX,
+        POOL_TRADE_TYPES,
+        40,
+      ).catch(() => []);
+      const trades: Trade[] = [];
+      for (const raw of logs) {
+        const trade = describeExplorerLog(raw, marketNamesById);
+        if (!trade) continue;
+        trades.push(tapeTradeFromExplorer(trade));
+      }
+      trades.sort((a, b) => b.timestamp - a.timestamp);
+      return trades.slice(0, 40);
+    },
+    ISR_PAGE_CACHE,
+  );
+}
+
 export async function loadPublicLiquidations(
   markets: Market[],
 ): Promise<LiquidationRow[]> {
-  return cached("public:liquidations", 20_000, async () => {
-    const names = marketNames(markets);
-    const explorerRows = await getRecentExplorerLiquidations(names).catch(
-      () => [],
-    );
-    return mergeLiquidationRows(explorerRows).slice(0, 80);
-  });
+  return cached(
+    "public:liquidations",
+    20_000,
+    async () => {
+      const names = marketNames(markets);
+      const explorerRows = await getRecentExplorerLiquidations(names).catch(
+        () => [],
+      );
+      return mergeLiquidationRows(explorerRows).slice(0, 80);
+    },
+    ISR_PAGE_CACHE,
+  );
 }
 
 async function loadAccountPositions(
@@ -95,7 +156,7 @@ export async function loadPublicPositions(
       }),
     );
     return rankLoadedPositions(byAccount);
-  });
+  }, ISR_PAGE_CACHE);
 }
 
 export async function loadPublicHourlyVolume(
@@ -111,5 +172,5 @@ export async function loadPublicHourlyVolume(
       ),
     );
     return sumHourlyVolumes(series).slice(-24);
-  });
+  }, ISR_PAGE_CACHE);
 }
